@@ -1,0 +1,35 @@
+[workspace]
+name = "pacific-drive-headtracking"
+version = "0.0.0"
+license = "MIT"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = "git submodule update --remote cameraunlock-core"
+# No -G: let CMake auto-detect the installed Visual Studio generator. Pinning
+# "Visual Studio 17 2022" broke on CI once the windows runner image moved to
+# VS 2026 (VS 17 absent); auto-detect picks whatever VS the machine has.
+configure = "cmake -S . -B build -A x64"
+build = { cmd = "cmake --build build --config Release --target PacificDriveHeadTracking", depends-on = ["configure"] }
+build-release = { depends-on = ["build"] }
+package = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+# The fleet's own manifest gate, run against the ZIP that was just built:
+# delivery_mode must be "manifest" and every path the launcher will read has to
+# exist inside the package. It shipped a manifest the gate rejects because
+# nothing ever ran it.
+validate = "node cameraunlock-core/scripts/validate-manifest.mjs"
+# Its own build dir, so the shipped target is never configured with
+# PDHT_BUILD_TESTS on.
+configure-tests = "cmake -S . -B build-tests -A x64 -DPDHT_BUILD_TESTS=ON"
+build-tests = { cmd = "cmake --build build-tests --config Release --target pdht_view_characterization pdht_config_validation", depends-on = ["configure-tests"] }
+test = { cmd = "ctest --test-dir build-tests -C Release --output-on-failure", depends-on = ["build-tests"] }
+install = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1", depends-on = ["build"] }
+uninstall = "cmd /c scripts\\uninstall.cmd"
+update-deps = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
+release = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1"
+clean = "powershell -NoProfile -Command \"Remove-Item -Recurse -Force build,build-tests,release -ErrorAction SilentlyContinue\""
+
+[dependencies]
+cmake = ">=3.20"
+ninja = "*"

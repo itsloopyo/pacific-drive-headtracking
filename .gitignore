@@ -1,0 +1,43 @@
+# Build output
+bin/
+obj/
+build/
+build-tests/
+dist/
+out/
+release/
+*.asi
+*.dll
+*.pdb
+*.exp
+*.lib
+*.ilk
+*.obj
+
+# Vendored loader is committed as a raw DLL; allow it back in.
+!vendor/**/*.dll
+
+# Tooling / agent files
+.pixi/
+.claude/
+.claude.json
+.lab/
+.mcp.json
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+AGENTS.md
+CLAUDE.md
+/skills/
+
+# Logs / scratch
+*.log
+ghidra_proj/
+
+# Installer state
+.headtracking-state.json
+
+# NexusMods page copy (not part of the shipped package)
+NEXUS_MODS.md
