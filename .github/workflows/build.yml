@@ -28,7 +28,7 @@ jobs:
     # "chore: bump version to X.Y.Z". The older 'Release v' prefix matched
     # nothing, so every release still triggered a redundant Build run
     # alongside the Release workflow.
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore: bump version to') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore: bump version to') }}"
 
     steps:
       - name: Checkout code
@@ -108,3 +108,4 @@ jobs:
           path: release/artifact-contents/
           retention-days: 14
           if-no-files-found: error
+          overwrite: true
