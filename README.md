@@ -2,7 +2,7 @@
 
 ![Pacific Drive running with this mod](https://raw.githubusercontent.com/itsloopyo/pacific-drive-headtracking/main/assets/readme-clip.gif)
 
-Move your head to look around while your mouse or controller keeps driving, aiming and interacting, using an ordinary webcam, phone or any OpenTrack compatible tracking source, no VR headset required.
+An unofficial head tracking mod for Pacific Drive that moves the view with your head while your mouse or controller keeps steering, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
