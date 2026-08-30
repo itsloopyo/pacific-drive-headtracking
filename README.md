@@ -2,7 +2,7 @@
 
 ![Pacific Drive running with this mod](https://raw.githubusercontent.com/itsloopyo/pacific-drive-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Pacific Drive that moves the view with your head while your mouse or controller keeps steering, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
+An unofficial head tracking mod for Pacific Drive that moves the view with your head while your mouse or controller keeps steering, driven by OpenTrack over UDP, with no VR headset required.
 
 ## Features
 
@@ -56,56 +56,64 @@ loader installed.
 
 ## Setting Up OpenTrack
 
-In OpenTrack, set **Output** to `UDP over network`, then open its options and
-set the destination to host `127.0.0.1`, port `4242`. Pick your tracker under
-**Input**, start tracking, and centre it with OpenTrack's Center bind while you
-are looking straight at the screen.
+The mod listens for OpenTrack pose data on UDP port `4242`, on every network
+interface. One datagram is six little-endian 64-bit floats in the order
+`x, y, z, yaw, pitch, roll`: position in centimetres, rotation in degrees, 48
+bytes in total. Anything that sends that to that port drives the view.
+OpenTrack's **UDP over network** output sends exactly this, and the steps below
+set it up.
 
-### VR Headset Setup
+1. Install [OpenTrack](https://github.com/opentrack/opentrack/releases).
+2. Pick a tracker under **Input**, using the notes below.
+3. Set **Output** to **UDP over network**, host `127.0.0.1`, port `4242`.
+4. Press **Start**. Tracking and the game can start in either order.
 
-1. Connect the headset to the PC with Air Link, Virtual Desktop or a link
-   cable.
-2. Launch SteamVR and let it see the headset.
-3. In OpenTrack, set **Input** to `SteamVR`.
-4. Set **Output** to `UDP over network`, destination `127.0.0.1` port `4242`.
+### Webcam
 
-### Webcam Setup
+OpenTrack ships a `neuralnet tracker` input that reads a plain webcam. Select it
+under **Input**, pick your camera in its settings, and use the output settings
+above. How well it tracks depends on your camera and your lighting, so try it
+before buying anything.
 
-1. In OpenTrack, set **Input** to `neuralnet tracker`. It works off a plain
-   webcam and needs no markers, clips or IR hardware.
-2. Open its options and pick your camera and resolution.
-3. Set **Output** to `UDP over network`, destination `127.0.0.1` port `4242`.
-4. Start tracking, sit how you normally play, and press OpenTrack's Center bind.
+### Phone
 
-### Phone App Setup
+A phone app can reach the mod directly, with no OpenTrack on the PC, if it sends
+the datagram described above. Point it at this PC's IP address (run `ipconfig`
+to find it) on port `4242`. Not every phone tracker speaks this protocol, so
+check yours for an OpenTrack or UDP output option first. [Headcam](https://headcam.app)
+sends it, and I wrote it so decent tracking is free for anyone who already owns
+a phone.
 
-The mod takes the OpenTrack UDP protocol on port `4242` and nothing else, so a
-phone app works here if it can send that protocol, either itself or through a
-companion app on the PC. For one that can, what decides how you wire it up is
-how much filtering it does before the packet leaves the phone.
+Sending direct works when the app filters its own signal on the device. The
+mod's smoothing is sized to take the edge off a clean signal rather than to
+rescue a noisy one, so a raw feed sent direct will jitter. If it does, point the
+app at OpenTrack's **UDP over network** *input* on some other port, say 5252,
+and let OpenTrack's filters and curves clean it up before its output forwards to
+`127.0.0.1:4242`.
 
-- **App filters on-device:** point it straight at this PC's LAN IP address on
-  UDP port `4242`. I made [Headcam](https://headcam.app) so decent tracking was
-  free for anybody with a phone already in their pocket; it filters on-device,
-  so it can send direct. Any app that filters enough noise works exactly the
-  same way.
-- **Raw or lightly filtered feed:** send it to OpenTrack instead, as a UDP
-  input, and let OpenTrack's filters and curves clean it up before it forwards
-  to `127.0.0.1:4242`. Do the same if you want OpenTrack's curve mapping
-  regardless of the app.
+Anything arriving from outside `127.0.0.0/8` counts as a remote connection and
+is smoothed with `RemoteSmoothing` rather than `LocalSmoothing`. That includes a
+tracker on this very PC that sends to the machine's own LAN address, because the
+mod reads the source address and not the machine.
 
-The test is quicker than the reading: try direct, hold your head still, and if
-the view drifts or shakes, route that app through OpenTrack. The mod's own
-smoothing is sized to take the edge off a clean signal, not to rescue a noisy
-one.
+### Headset or other hardware
 
-Centre the phone tracker with the app's own control, such as Headcam's CENTER
-button.
+If your device has an OpenTrack input driver, select it under **Input** and use
+the same output settings. OpenTrack's own **Input** list is the authority on
+what it can read; the mod only ever sees what OpenTrack sends.
 
-A phone on WiFi is a remote connection and gets `RemoteSmoothing`. So does a
-tracker running on this same PC if it sends to your LAN address instead of
-`127.0.0.1`, because the mod classifies a transport and not a machine. Send to
-`127.0.0.1` if you want `LocalSmoothing`.
+### Centring
+
+Centring belongs to your tracker. The mod subtracts no centre of its own: it
+applies the pose it receives exactly as it arrives, so a stream of zeros holds
+the view where the game itself puts it. Press the centre control in your tracker
+(OpenTrack's **Center** bind, or the CENTER button in Headcam) and the tracker
+zeroes its own output, which leaves the view centred with the mod doing nothing.
+
+That is why there is no centre hotkey here and nothing to re-centre in game. Two
+centres in series would drift apart, because each side re-centres at moments the
+other cannot see, and you would end up pressing twice to centre once. If the
+view sits off to one side, centre it in the tracker.
 
 ## Controls
 
@@ -268,9 +276,9 @@ pixi run package    # release/*.zip
 
 ## Community & Support
 
-- [Discord](https://discord.com/invite/dxyZdyFNT9) - setup help, bug reports, and new-release announcements
-- [Lopari](https://lopari.app) - free Windows launcher with one-click install and launch of head-tracking mods
-- [Headcam](https://headcam.app) - free app that turns your phone into a head tracker
+- Discord: [Loop's Head Tracking Hangout](https://discord.com/invite/dxyZdyFNT9) - setup help, bug reports, and new-release announcements
+- [Lopari](https://lopari.app) - free Windows launcher with one-click install and launch for the released head-tracking mods
+- [Headcam](https://headcam.app) - free app that turns your iPhone or Android phone into the head tracker
 
 ## License
 
