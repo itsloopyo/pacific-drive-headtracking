@@ -14,22 +14,13 @@ $asi = Join-Path $root 'build/Release/PacificDriveHeadTracking.asi'
 if (-not (Test-Path $asi)) { throw "Build output missing: $asi. Run 'pixi run build' first." }
 
 # The manifest's loader.seed is a base64 copy of PacificDriveHeadTracking.ini,
-# and it is what a launcher-deployed user actually gets. Hand-maintained, it
-# drifted: the shipped seed was two revisions behind, missing every documented
-# range and naming a log file that does not exist. Regenerate it here so the two
-# cannot disagree, and say so when it moves - release.ps1 commits the manifest
-# with the version bump, so a change lands in the same commit.
+# and it is what a launcher-deployed user actually gets. The committed manifest
+# is the authoritative copy of it: reviewable, diffable and in git, where the
+# blob inside the ZIP is a build product. Refreshing the blob from disk here
+# would ship a correct ZIP over a stale committed file, so drift fails the build
+# and gets re-stamped in a commit instead.
 $manifestPath = Join-Path $root 'launcher-manifest.json'
-$iniBytes = [System.IO.File]::ReadAllBytes((Join-Path $root 'PacificDriveHeadTracking.ini'))
-$seed = [System.Convert]::ToBase64String($iniBytes)
-$manifestText = [System.IO.File]::ReadAllText($manifestPath)
-$updated = $manifestText -replace '("content_b64":\s*")[^"]*(")', "`${1}$seed`$2"
-if ($updated -eq $manifestText) {
-    if ($manifestText -notmatch '"content_b64"') { throw 'launcher-manifest.json has no content_b64 seed to refresh' }
-} else {
-    [System.IO.File]::WriteAllText($manifestPath, $updated, (New-Object System.Text.UTF8Encoding $false))
-    Write-Host 'Refreshed launcher-manifest.json seed from PacificDriveHeadTracking.ini' -ForegroundColor Yellow
-}
+Assert-ManifestSeedsMatchShipped -ManifestPath $manifestPath -ProjectRoot $root
 
 $rel = Join-Path $root 'release'
 # No -ErrorAction SilentlyContinue: a locked release/ (an open Explorer window,
