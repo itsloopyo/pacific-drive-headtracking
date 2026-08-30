@@ -12,11 +12,12 @@
 :: --- CONFIG BLOCK ---
 set "GAME_ID=pacific-drive"
 set "MOD_DISPLAY_NAME=Pacific Drive Head Tracking"
-set "MOD_DLLS=PacificDriveHeadTracking.asi PacificDriveHeadTracking.ini"
+set "MOD_DLLS=PacificDriveHeadTracking.asi"
 set "MOD_INTERNAL_NAME=PacificDriveHeadTracking"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"
 set "LEGACY_DLLS=HeadTracking.log HeadTracking.prev.log"
+set "MOD_SEED_FILES=PacificDriveHeadTracking.ini"
 set "PLUGIN_SUBFOLDER="
 set "MANAGED_SUBFOLDER="
 set "ASSEMBLY_DLL="
