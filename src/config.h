@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <string>
 
+#include "cameraunlock/data/position_settings.h"
+#include "cameraunlock/math/smoothing_utils.h"
+
 namespace pdht {
 
 // Mod configuration, loaded from PacificDriveHeadTracking.ini next to the
@@ -27,25 +30,25 @@ struct Config {
     // Smoothing is chosen per connection: local for a tracker on this machine
     // (loopback), remote for a device on the network. Both cover rotation and
     // position.
-    float localSmoothing = 0.0f;
-    float remoteSmoothing = 0.15f;
+    float localSmoothing = static_cast<float>(cameraunlock::math::kDefaultLocalSmoothing);
+    float remoteSmoothing = static_cast<float>(cameraunlock::math::kDefaultRemoteSmoothing);
 
     // [Position]
     bool positionEnabled = true;
     float positionSensitivityX = 1.0f;
     float positionSensitivityY = 1.0f;
     float positionSensitivityZ = 1.0f;
-    float limitX = 0.30f;
+    float limitX = cameraunlock::PositionSettings{}.limit_x;
     // The vertical clamp is [-limitYDown, +limitY]. Two fields, because a
     // tighter crouch range than standing range is a real thing to want; when
     // LimitYDown is absent it mirrors LimitY, which is the symmetric case.
     // Leaving limit_y_down at the core struct's own default instead meant a user
     // who set LimitY=0.05 still got 0.20 m of downward travel, with nothing in
     // the log or the docs saying the key was only half-effective.
-    float limitY = 0.20f;
-    float limitYDown = 0.20f;
-    float limitZ = 0.40f;
-    float limitZBack = 0.10f;
+    float limitY = cameraunlock::PositionSettings{}.limit_y;
+    float limitYDown = cameraunlock::PositionSettings{}.limit_y_down;
+    float limitZ = cameraunlock::PositionSettings{}.limit_z;
+    float limitZBack = cameraunlock::PositionSettings{}.limit_z_back;
 
     // [Camera]
     // Degrees added to the game's own horizontal field of view. Pacific Drive
