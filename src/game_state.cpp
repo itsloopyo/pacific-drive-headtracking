@@ -93,8 +93,7 @@ bool GameState::Initialize() {
         // same class of invisible failure has shipped here once already.
         if (++m_initAttempts == kInitAttemptsBeforeWarning) {
             log::Line("[GameState] the UWidget class is still unresolvable after several "
-                      "attempts - the menu/cutscene gate stays off and tracking runs "
-                      "everywhere.");
+                      "attempts - tracking remains suppressed until the gate is ready.");
         }
         return false;
     }
@@ -107,8 +106,7 @@ bool GameState::Initialize() {
         // from a few seconds later.
         if (++m_initAttempts == kInitAttemptsBeforeWarning) {
             log::Line("[GameState] UWidget properties still unreadable after several "
-                      "attempts - the menu/cutscene gate stays off and tracking runs "
-                      "everywhere.");
+                      "attempts - tracking remains suppressed until the gate is ready.");
         }
         return false;
     }
@@ -127,9 +125,13 @@ bool GameState::Initialize() {
 }
 
 Signal GameState::HasPossessedPawn() {
+    m_mainMenu = false;
     if (!RefreshCachedProperty(m_controller, &ue4::FindPlayerController, "Pawn")) {
         return Signal::Unavailable;
     }
+    // The main menu controller possesses a live pawn too.
+    m_mainMenu = un::ClassName(m_controller.actor) == "BP_MainMenu_PlayerController_C";
+    if (m_mainMenu) return Signal::False;
 
     std::uintptr_t pawn = 0;
     if (!un::SafeReadPtr(m_controller.actor + m_controller.offset, pawn)) {
@@ -245,20 +247,19 @@ void GameState::Update(std::uintptr_t cameraManager) {
         pawn == Signal::True && paused == Signal::False ? IsCutscene(cameraManager)
                                                         : Signal::False;
 
-    // Fails OPEN, every signal alike. A signal the mod cannot read says nothing
-    // about whether the player is playing, and a gate that wrongly suppresses is
-    // far worse than one that wrongly allows: the user sees no head tracking
-    // anywhere and the log names a menu or a loading screen as the cause.
     if (pawn == Signal::Unavailable && !m_unavailableLogged) {
         m_unavailableLogged = true;
         log::Line("[GameState] the possessed-pawn signal cannot be read on this build "
                   "(no local PlayerController found, or no reachable Pawn property). "
-                  "The gate leaves tracking ON rather than reporting a menu that is not "
-                  "there. Report this log.");
+                  "Tracking remains suppressed until the gameplay state can be read.");
     }
 
     const char* reason = nullptr;
-    if (pawn == Signal::False) {
+    if (m_mainMenu) {
+        reason = "tracking suppressed: main menu";
+    } else if (pawn == Signal::Unavailable) {
+        reason = "tracking suppressed: gameplay state unavailable";
+    } else if (pawn == Signal::False) {
         reason = "tracking suppressed: no possessed pawn (menu, loading or not in a level)";
     } else if (paused == Signal::True) {
         reason = "tracking suppressed: game paused";

@@ -69,8 +69,6 @@ constexpr unsigned long long kCameraScanFoundMs = 2000;
 // Back off hard while there is nothing to find: at the main menu the scan would
 // otherwise run every second for no result.
 constexpr unsigned long long kCameraScanMissingMs = 5000;
-// The widgets the gate reads only exist in a level, so initialisation cannot
-// succeed at the main menu - keep retrying until the first level.
 constexpr unsigned long long kGateInitRetryMs = 3000;
 
 // Used when the build is unknown but reflection came up anyway. It is the same
@@ -358,10 +356,7 @@ void CameraHook::RefreshEngineObjects() {
 }
 
 void CameraHook::AdvanceGateBlend(float dt) {
-    // Menus, cutscenes and the pause screen are not gameplay. Until the gate has
-    // something to read it stays open, so a build where the game's UI classes
-    // have been renamed tracks everywhere rather than nowhere.
-    const bool gateOpen = !m_gameState.IsActive() || m_gameState.InGameplay();
+    const bool gateOpen = m_gameState.IsActive() && m_gameState.InGameplay();
     m_gateBlend += ((gateOpen ? 1.0f : 0.0f) - m_gateBlend)
                    * (1.0f - std::exp(-kGateBlendSpeed * dt));
 }

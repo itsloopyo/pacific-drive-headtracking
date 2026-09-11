@@ -31,11 +31,7 @@ struct CachedActorProperty {
     unsigned long long nextScanMs = 0;
 };
 
-// One gate signal. Unavailable is NOT False: the gate fails OPEN, so a signal
-// that cannot be read must never be reported as "not in gameplay". Collapsing
-// the two is how a renamed property or a moved FProperty layout turns into
-// "tracking suppressed: no possessed pawn (menu, loading or not in a level)"
-// forever, with the log naming a cause that has nothing to do with the fault.
+// Unavailable signals retain their own diagnostic instead of reporting a menu.
 enum class Signal { True, False, Unavailable };
 
 // Decides whether the player is actually playing, so head tracking is not
@@ -43,8 +39,8 @@ enum class Signal { True, False, Unavailable };
 //
 // Three signals, all read through reflection rather than pinned offsets:
 //
-//   - The local PlayerController has a possessed Pawn. No pawn means the menu, a
-//     loading screen, or no level at all.
+//   - The local PlayerController has a possessed Pawn and is not the main menu
+//     controller, which also possesses a pawn.
 //   - AWorldSettings::Pauser is the engine's own pause flag - non-null means
 //     paused, whatever is drawn on top.
 //   - The camera manager's ViewTarget.Target is a CINE camera. A LevelSequence
@@ -67,7 +63,7 @@ public:
     // Checks the FProperty layout by looking up UWidget::RenderTransform, whose
     // offset is known independently from the disassembly of
     // SetRenderTranslation. A mismatch means property offsets cannot be trusted,
-    // so the gate stays off rather than suppressing tracking on a bad read.
+    // so tracking remains suppressed until the layout is validated.
     bool Initialize();
 
     // Re-reads the state. Cheap in the steady state: the cached actors are
@@ -77,7 +73,7 @@ public:
 
     bool InGameplay() const { return m_inGameplay.load(std::memory_order_relaxed); }
 
-    // Whether the gate is actually running. False leaves tracking always on.
+    // Whether the gate has validated the property layout.
     bool IsActive() const { return m_active; }
 
     // Last reason tracking is suppressed, for the heartbeat. Never null.
@@ -130,7 +126,8 @@ private:
     // either staying silent or repeating every tick.
     bool m_unavailableLogged = false;
 
-    std::atomic<bool> m_inGameplay{true};
+    bool m_mainMenu = false;
+    std::atomic<bool> m_inGameplay{false};
     std::atomic<const char*> m_reason{"starting up"};
 };
 
