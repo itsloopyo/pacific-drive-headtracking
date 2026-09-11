@@ -94,8 +94,10 @@ try {
         "- Fetched at: $($meta.FetchedAt)",
         '',
         '`dinput8.dll` is extracted from the upstream asset untouched. install.cmd copies it to',
-        '`<game>/PenDriverPro/Binaries/Win64/winmm.dll` as the ASI hook slot (winmm is a static',
-        'import of the UE4 shipping exe, so the loader gets in without a dinput8 dependency).'
+        '`winmm.dll` next to the game exe - `PenDriverPro/Binaries/Win64/` on Steam,',
+        '`PenDriverPro/Binaries/WinGDK/` on Xbox Game Pass - as the ASI hook slot (winmm is a',
+        'static import of the UE4 shipping exe, so the loader gets in without a dinput8',
+        'dependency).'
     ) -join "`n"
     Set-Content -Path (Join-Path $vendorAsiDir 'README.md') -Value $readme -Encoding UTF8
 

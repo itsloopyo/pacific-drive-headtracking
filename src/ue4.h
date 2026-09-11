@@ -53,6 +53,12 @@ struct BuildProfile {
     std::size_t setPositionInViewportRva;
 };
 
+// One file per store, every build for that store inside it. The store variants
+// are separate binaries with different RVAs, so a profile derived on one says
+// nothing about the other.
+extern const BuildProfile kSteamProfile_20260604;  // steam_offsets.cpp
+extern const BuildProfile kGdkProfile_20260911;    // gdk_offsets.cpp
+
 extern const BuildProfile* const kKnownProfiles[];
 extern const std::size_t kKnownProfileCount;
 

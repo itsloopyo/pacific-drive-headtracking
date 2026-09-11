@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Added support for the Xbox Game Pass / Microsoft Store copy of the game. That
+  build is a different executable in a different folder
+  (`PenDriverPro\Binaries\WinGDK\PenDriverPro-WinGDK-Shipping.exe`) with its own
+  addresses, so it gets its own build profile; the mod picks the right one by
+  fingerprinting the executable it finds itself inside. Both copies can be
+  installed at once and each gets its own deployment.
+
+### Changed
+- The installer now places the mod next to whichever game executable it
+  detected, rather than always at the Steam build's path. A Game Pass install
+  previously received the files in a folder the game does not read, which looked
+  like a successful install and did nothing.
+
 ## [0.0.0] - 2026-08-26
 
 ### Added

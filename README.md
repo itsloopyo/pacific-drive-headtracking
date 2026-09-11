@@ -8,10 +8,12 @@ An unofficial head tracking mod for Pacific Drive that moves the view with your 
 
 - **Decoupled look and aim** - head tracking moves the camera; aim, interaction and driving stay on your mouse or controller
 - **6DOF positional tracking** - lean and peek with head position, not just yaw, pitch and roll
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
 
 ## Requirements
 
-- [Pacific Drive](https://store.steampowered.com/app/1458140/) on Steam.
+- [Pacific Drive](https://store.steampowered.com/app/1458140/) on Steam, or on
+  Xbox Game Pass for PC / the Microsoft Store.
 - A head tracking source that speaks the OpenTrack UDP protocol: [OpenTrack](https://github.com/opentrack/opentrack) with a webcam, a VR headset, or a phone tracking app.
 - Windows 10 or 11, 64-bit.
 
@@ -37,13 +39,31 @@ or by passing the path as an argument:
 .\install.cmd "D:\Games\Pacific Drive"
 ```
 
+### If you own both copies
+
+The Steam and Game Pass builds are different executables in different folders,
+and the installer writes to one copy per run: whichever it finds first, which is
+Steam when both are installed. To cover the other one, run `install.cmd` again
+with its path, as above. It reports the folder it wrote to every time, so read
+that line rather than assuming.
+
 ### Manual Installation
 
-The installer places the Ultimate ASI Loader and the mod plugin next to
-`PenDriverPro-Win64-Shipping.exe`. To do the same by hand:
+The installer places the Ultimate ASI Loader and the mod plugin next to the game
+executable. That is a different folder on each store:
 
-1. Open `<Game>\PenDriverPro\Binaries\Win64\`, the folder holding
-   `PenDriverPro-Win64-Shipping.exe`.
+| Store | Folder | Executable |
+|-------|--------|------------|
+| Steam | `<Game>\PenDriverPro\Binaries\Win64\` | `PenDriverPro-Win64-Shipping.exe` |
+| Xbox Game Pass / Microsoft Store | `<Game>\PenDriverPro\Binaries\WinGDK\` | `PenDriverPro-WinGDK-Shipping.exe` |
+
+The Xbox app asks which drive to install to, so the Game Pass folder is under
+`<that drive>\XboxGames\Pacific Drive\Content\`. Windows also publishes the
+same directory under `C:\Program Files\WindowsApps\` as a junction; either
+route reaches the same files. To do the install by hand:
+
+1. Open the folder for your store from the table above, the one holding the
+   executable.
 2. Copy `dinput8.dll` from the ZIP's `vendor\ultimate-asi-loader\` folder into
    that directory and rename it to `winmm.dll`. Skip this step if you already
    run an ASI loader for Pacific Drive.
@@ -139,9 +159,9 @@ or the CENTER button in a phone app.
 
 ## Configuration
 
-The mod writes `PacificDriveHeadTracking.ini` next to
-`PenDriverPro-Win64-Shipping.exe`, in `<Game>\PenDriverPro\Binaries\Win64\`.
-Delete it to restore defaults.
+The mod writes `PacificDriveHeadTracking.ini` next to the game executable, in
+the folder for your store listed under [Manual
+Installation](#manual-installation). Delete it to restore defaults.
 
 ```ini
 [Network]
@@ -217,9 +237,12 @@ the previous session is kept as `HeadTracking.prev.log`.
 
 **Mod not loading**
 
-- Confirm `winmm.dll` and `PacificDriveHeadTracking.asi` are in
-  `<Game>\PenDriverPro\Binaries\Win64\`, alongside the exe, not in the game's
-  root folder.
+- Confirm `winmm.dll` and `PacificDriveHeadTracking.asi` are alongside the game
+  executable - `Binaries\Win64\` on Steam, `Binaries\WinGDK\` on Game Pass -
+  and not in the game's root folder.
+- If the log exists but says the build is unknown, the game has been patched to
+  a build this release does not have a profile for. The mod stays dormant and
+  the game runs vanilla; check the releases page for an updated mod.
 - If `HeadTracking.log` does not exist at all, the loader never attached. Run
   `install.cmd` again and read where it reports putting the files.
 

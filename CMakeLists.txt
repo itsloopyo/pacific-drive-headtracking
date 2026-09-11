@@ -48,6 +48,8 @@ add_library(PacificDriveHeadTracking SHARED
     src/reticle.cpp
     src/ue4.cpp
     src/ue4_reflect.cpp
+    src/steam_offsets.cpp
+    src/gdk_offsets.cpp
 )
 
 target_include_directories(PacificDriveHeadTracking PRIVATE src)
@@ -87,6 +89,8 @@ if(PDHT_BUILD_TESTS)
     add_executable(pdht_view_characterization
         tests/ue4_view_characterization.cpp
         src/ue4.cpp
+        src/steam_offsets.cpp
+        src/gdk_offsets.cpp
     )
     target_include_directories(pdht_view_characterization PRIVATE src)
     target_link_libraries(pdht_view_characterization PRIVATE cameraunlock)
