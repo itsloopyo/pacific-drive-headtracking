@@ -13,11 +13,18 @@ An unofficial head tracking mod for Pacific Drive that moves the view with your 
 ## Requirements
 
 - [Pacific Drive](https://store.steampowered.com/app/1458140/) on Steam, or on
-  Xbox Game Pass for PC / the Microsoft Store.
+  Xbox Game Pass.
 - A head tracking source that speaks the OpenTrack UDP protocol: [OpenTrack](https://github.com/opentrack/opentrack) with a webcam, a VR headset, or a phone tracking app.
 - Windows 10 or 11, 64-bit.
 
 ## Installation
+
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **Pacific Drive**, and click
+**Play with head tracking**.
+
+### Standalone Installer
 
 1. Download `PacificDriveHeadTracking-v<version>-installer.zip` from the [Releases](../../releases) page.
 2. Extract it anywhere.
@@ -41,7 +48,7 @@ or by passing the path as an argument:
 
 ### If you own both copies
 
-The Steam and Game Pass builds are different executables in different folders,
+The Steam and Xbox Game Pass builds are different executables in different folders,
 and the installer writes to one copy per run: whichever it finds first, which is
 Steam when both are installed. To cover the other one, run `install.cmd` again
 with its path, as above. It reports the folder it wrote to every time, so read
@@ -55,9 +62,9 @@ executable. That is a different folder on each store:
 | Store | Folder | Executable |
 |-------|--------|------------|
 | Steam | `<Game>\PenDriverPro\Binaries\Win64\` | `PenDriverPro-Win64-Shipping.exe` |
-| Xbox Game Pass / Microsoft Store | `<Game>\PenDriverPro\Binaries\WinGDK\` | `PenDriverPro-WinGDK-Shipping.exe` |
+| Xbox Game Pass | `<Game>\PenDriverPro\Binaries\WinGDK\` | `PenDriverPro-WinGDK-Shipping.exe` |
 
-The Xbox app asks which drive to install to, so the Game Pass folder is under
+The Xbox app asks which drive to install to, so the Xbox Game Pass folder is under
 `<that drive>\XboxGames\Pacific Drive\Content\`. Windows also publishes the
 same directory under `C:\Program Files\WindowsApps\` as a junction; either
 route reaches the same files. To do the install by hand:
@@ -238,7 +245,7 @@ the previous session is kept as `HeadTracking.prev.log`.
 **Mod not loading**
 
 - Confirm `winmm.dll` and `PacificDriveHeadTracking.asi` are alongside the game
-  executable - `Binaries\Win64\` on Steam, `Binaries\WinGDK\` on Game Pass -
+  executable - `Binaries\Win64\` on Steam, `Binaries\WinGDK\` on Xbox Game Pass -
   and not in the game's root folder.
 - If the log exists but says the build is unknown, the game has been patched to
   a build this release does not have a profile for. The mod stays dormant and
