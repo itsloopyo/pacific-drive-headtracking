@@ -3,3 +3,4 @@
 *.bat text eol=crlf
 *.dll binary
 *.asi binary
+tests/config_differential/data/** -text

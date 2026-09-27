@@ -1,0 +1,26 @@
+# What the differential test compares, and where each file came from.
+# Columns: role, source (commit:path, or the path in this repo), sha256 of the bytes.
+# The rolling dev pre-release (tag dev, commit 21a4f1e) is the newest and only published build;
+# no v* tag exists and no predecessor repo shipped this mod. Its installer ZIP (plugins/), its
+# Nexus ZIP and its launcher manifest seed all hold the same PacificDriveHeadTracking.ini, and no
+# build wrote one on its first run: every player's file is that one, edited or not.
+# The reader was frozen at b8ac5e2, whose src/ is 21a4f1e's. No commit since changes how the
+# file is read, and every core source either reader compiles holds the same bytes at 7820a8c
+# (the dev build's core pin) and at the current pin.
+published reader	21a4f1e:src/config.cpp, compiled as tests/config_differential/oracle/src/config.cpp	1077bceeeac7c6029510b9a9bd65908b470b4a3ac83496bb4dc99e95627fbf88
+published reader	21a4f1e:src/config.h, compiled as tests/config_differential/oracle/src/config.h	1931d73c0e886508874e397fbc08f213c7b26f807bcfe8a1253c23e8267af3dd
+published startup	21a4f1e:src/mod.cpp, transcribed in tests/config_differential/oracle/oracle_reader.cpp	b3c99d1ca74112ea68017d32b9bceb4f0f1149e610cbcbd99b5a4e458f2f4100
+published startup	21a4f1e:src/camera_hook.cpp, transcribed in tests/config_differential/oracle/oracle_reader.cpp	ad6ed05188003458109dc57f7e5be82bf820f5c77a80752d5e4e3f467fac551a
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/config/ini_reader.h	a7ffb44210ff59672fa97e8e5feaa2cb3e81938fcc0334a384c68bc371b3857a
+published core source	cameraunlock-core 7820a8c:cpp/src/config/ini_reader.cpp	e01515c2656aaf533bae4350dc45b702c3e3d4043935743dcc9bd5ea581fbe1c
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/math/finite_utils.h	c59772d698d54ade3374ee1221b74f5563a86d76f0eb34a989ef7efab389c0ad
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/logging/file_log.h	43bdd2ef8554c78e5f440333463750c13b95110fe672b0b6e273244df9e7d169
+published core source	cameraunlock-core 7820a8c:cpp/src/logging/file_log.cpp	73c53c2baa06bbfebe8211f62678aa2b60cb95f604743d3686951ba56b87ea47
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/data/position_settings.h	b24dceb8e25475aebc5a468a5c7362a4a4e64204d183d1408525345f32f547f5
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/math/smoothing_utils.h	fc2146f8c585e5f610c7234e302f59de4945679cfa28ff479ca47477ec073f22
+published core source	cameraunlock-core 7820a8c:cpp/include/cameraunlock/math/angle_utils.h	d7a905270933e3cb0c4c361d29d3fd701655498cbcd1875ea79d180468bdbe6a
+frozen from	b8ac5e2:src/config.cpp	1077bceeeac7c6029510b9a9bd65908b470b4a3ac83496bb4dc99e95627fbf88
+frozen from	b8ac5e2:src/config.h	1931d73c0e886508874e397fbc08f213c7b26f807bcfe8a1253c23e8267af3dd
+frozen reader	src/legacy_config/legacy_config.h	f6e4e0ab3f0546dfb4ca40d62de2e8173353190bc51e4f7e9ad2846fb64ff39e
+frozen reader	src/legacy_config/legacy_config.cpp	d2069b8beb6734c61463fcc3e724ba8246bcae2a78c9a0bb05b1318f113082c2
+input	dev:PacificDriveHeadTracking.ini, the file the dev installer ZIP, Nexus ZIP and manifest seed ship, tests/config_differential/data/shipped-dev.ini	ce57aae3e422cce777f3d74dd35b9c3c32414ce6ccf0f222920b1cb5e8e5fc22

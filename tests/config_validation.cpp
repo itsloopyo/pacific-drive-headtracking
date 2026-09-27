@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 itsloopyo / CameraUnlock
 //
-// The INI is the only place a user hands this mod raw numbers, and everything
-// downstream of Config::Load trusts them: sensitivities multiply into the head
+// The frozen PacificDriveHeadTracking.ini reader in src/legacy_config/, which
+// imports a player's pre-canonical file. That INI was the only place a user
+// handed this mod raw numbers, and everything downstream of the read trusted
+// them: sensitivities multiply into the head
 // pose, the limits become the clamp bounds in PositionProcessor, and the pose
 // ends up in the renderer's ViewRotationMatrix and ViewOrigin. Nothing further
 // down re-checks any of it - InjectHeadPose's orthonormality guard only tests
@@ -24,7 +26,7 @@
 #endif
 #include <windows.h>
 
-#include "config.h"
+#include "legacy_config/legacy_config.h"
 
 namespace {
 
@@ -79,10 +81,10 @@ private:
     std::string m_path;
 };
 
-pdht::Config LoadFrom(const char* caseName, const std::string& body) {
+pdht::legacy::Config LoadFrom(const char* caseName, const std::string& body) {
     TempIni ini(caseName, body);
-    pdht::Config config;
-    config.Load(ini.Path());
+    pdht::legacy::Config config;
+    pdht::legacy::Load(ini.Path(), config);
     return config;
 }
 
@@ -90,7 +92,7 @@ pdht::Config LoadFrom(const char* caseName, const std::string& body) {
 // validation from quietly becoming a behaviour change.
 void TestValidConfigIsUntouched() {
     std::printf("-- a valid config passes through unchanged\n");
-    const pdht::Config c = LoadFrom("valid",
+    const pdht::legacy::Config c = LoadFrom("valid",
         "[Network]\n"
         "Port=5555\n"
         "[Tracking]\n"
@@ -143,9 +145,9 @@ void TestValidConfigIsUntouched() {
 
 void TestMissingFileKeepsDefaults() {
     std::printf("-- a missing file keeps every default\n");
-    const pdht::Config defaults;
-    pdht::Config c;
-    c.Load("Z:\\pdht-does-not-exist\\nothing-here.ini");
+    const pdht::legacy::Config defaults;
+    pdht::legacy::Config c;
+    pdht::legacy::Load("Z:\\pdht-does-not-exist\\nothing-here.ini", c);
     CheckEq(c.port, defaults.port, "a missing file keeps the default port");
     CheckNear(c.yawSensitivity, defaults.yawSensitivity, 0.0f,
               "a missing file keeps the default sensitivity");
@@ -159,18 +161,18 @@ void TestMissingFileKeepsDefaults() {
 // arrive while the whole log still reads as healthy.
 void TestUnparseablePortFallsBackToDefault() {
     std::printf("-- an unparseable port does not become port 0\n");
-    const uint16_t expected = pdht::Config{}.port;
+    const uint16_t expected = pdht::legacy::Config{}.port;
 
-    const pdht::Config empty = LoadFrom("port_empty", "[Network]\nPort=\n");
+    const pdht::legacy::Config empty = LoadFrom("port_empty", "[Network]\nPort=\n");
     CheckEq(empty.port, expected, "an empty port falls back to the default");
 
-    const pdht::Config quoted = LoadFrom("port_quoted", "[Network]\nPort=\"4242\" ; note\n");
+    const pdht::legacy::Config quoted = LoadFrom("port_quoted", "[Network]\nPort=\"4242\" ; note\n");
     CheckEq(quoted.port, expected, "a quoted port with a trailing comment falls back");
 
-    const pdht::Config word = LoadFrom("port_word", "[Network]\nPort=default\n");
+    const pdht::legacy::Config word = LoadFrom("port_word", "[Network]\nPort=default\n");
     CheckEq(word.port, expected, "a non-numeric port falls back to the default");
 
-    const pdht::Config zero = LoadFrom("port_zero", "[Network]\nPort=0\n");
+    const pdht::legacy::Config zero = LoadFrom("port_zero", "[Network]\nPort=0\n");
     CheckEq(zero.port, expected, "an explicit port 0 falls back rather than binding any port");
 }
 
@@ -178,7 +180,7 @@ void TestUnparseablePortFallsBackToDefault() {
 // nobody was sending to and said nothing about it.
 void TestOutOfRangePortFallsBackToDefault() {
     std::printf("-- an out-of-range port does not wrap\n");
-    const uint16_t expected = pdht::Config{}.port;
+    const uint16_t expected = pdht::legacy::Config{}.port;
     CheckEq(LoadFrom("port_high", "[Network]\nPort=70000\n").port, expected,
             "a port above 65535 falls back instead of wrapping");
     CheckEq(LoadFrom("port_neg", "[Network]\nPort=-1\n").port, expected,
@@ -192,8 +194,8 @@ void TestOutOfRangePortFallsBackToDefault() {
 // every frame.
 void TestNonFiniteFloatsNeverEscape() {
     std::printf("-- nan / inf / overflow never reach the pose\n");
-    const pdht::Config defaults;
-    const pdht::Config c = LoadFrom("nonfinite",
+    const pdht::legacy::Config defaults;
+    const pdht::legacy::Config c = LoadFrom("nonfinite",
         "[Tracking]\n"
         "YawSensitivity=nan\n"
         "PitchSensitivity=inf\n"
@@ -239,7 +241,7 @@ void TestNonFiniteFloatsNeverEscape() {
 // the lean at a fixed offset instead of freeing it.
 void TestPositionLimitsStayPositive() {
     std::printf("-- position limits stay positive and bounded\n");
-    const pdht::Config c = LoadFrom("limits",
+    const pdht::legacy::Config c = LoadFrom("limits",
         "[Position]\n"
         "LimitX=-0.3\n"
         "LimitY=0\n"
@@ -253,7 +255,7 @@ void TestPositionLimitsStayPositive() {
 
 void TestSmoothingStaysInUnitRange() {
     std::printf("-- smoothing stays in 0..1\n");
-    const pdht::Config c = LoadFrom("smoothing",
+    const pdht::legacy::Config c = LoadFrom("smoothing",
         "[Tracking]\nLocalSmoothing=-2.5\nRemoteSmoothing=9.0\n");
     // Outside 0..1 the smoothing speed lerp runs off both ends: a negative
     // smoothing gives a speed above 50 and a value above 1 gives a negative one,
@@ -264,7 +266,7 @@ void TestSmoothingStaysInUnitRange() {
 
 void TestSensitivitiesStayInRange() {
     std::printf("-- sensitivities stay in their documented ranges\n");
-    const pdht::Config c = LoadFrom("sensitivity",
+    const pdht::legacy::Config c = LoadFrom("sensitivity",
         "[Tracking]\nYawSensitivity=1000\nPitchSensitivity=-4\n"
         "[Position]\nSensitivityX=-1\nSensitivityZ=1000\n");
     CheckNear(c.yawSensitivity, 3.0f, 0.0f, "an absurd yaw sensitivity clamps to the maximum");
@@ -278,9 +280,9 @@ void TestSensitivitiesStayInRange() {
 
 void TestFovOffsetRangeIsUnchanged() {
     std::printf("-- the fov offset range is unchanged\n");
-    const pdht::Config c = LoadFrom("fov", "[Camera]\nFovOffset=400\n");
+    const pdht::legacy::Config c = LoadFrom("fov", "[Camera]\nFovOffset=400\n");
     CheckNear(c.fovOffsetDegrees, 60.0f, 0.0f, "a huge fov offset clamps to the maximum");
-    const pdht::Config d = LoadFrom("fov_neg", "[Camera]\nFovOffset=-400\n");
+    const pdht::legacy::Config d = LoadFrom("fov_neg", "[Camera]\nFovOffset=-400\n");
     CheckNear(d.fovOffsetDegrees, -40.0f, 0.0f, "a hugely negative fov offset clamps to the minimum");
 }
 
@@ -291,11 +293,11 @@ void TestFovOffsetRangeIsUnchanged() {
 // discarded with nothing in the log naming the key.
 void TestPartiallyParseableFloatsAreRejected() {
     std::printf("-- a float that does not wholly parse is rejected, not truncated\n");
-    const pdht::Config c = LoadFrom("partial_float",
+    const pdht::legacy::Config c = LoadFrom("partial_float",
         "[Tracking]\nLocalSmoothing=0,15\nRemoteSmoothing=0.5abc\n"
         "YawSensitivity=one point five\n"
         "[Camera]\nFovOffset=10 20\n");
-    const pdht::Config defaults;
+    const pdht::legacy::Config defaults;
     CheckNear(c.localSmoothing, defaults.localSmoothing, 0.0f,
               "a decimal comma is rejected rather than read as 0");
     CheckNear(c.remoteSmoothing, defaults.remoteSmoothing, 0.0f,
@@ -311,7 +313,7 @@ void TestPartiallyParseableFloatsAreRejected() {
 // `Enabled=0 ; note` matched nothing and left positional tracking fully ON.
 void TestTrailingCommentsSurviveOnEveryType() {
     std::printf("-- trailing comments do not silently discard a value\n");
-    const pdht::Config c = LoadFrom("trailing_comment",
+    const pdht::legacy::Config c = LoadFrom("trailing_comment",
         "[Network]\nPort=5555 ; my port\n"
         "[Tracking]\nEnableOnStartup=0 ; off for now\nWorldSpaceYaw=0 # camera local\n"
         "LocalSmoothing=0.4 ; a little\n"
@@ -330,23 +332,23 @@ void TestTrailingCommentsSurviveOnEveryType() {
 // nothing anywhere to say so.
 void TestBoolsAcceptTheirWholeVocabulary() {
     std::printf("-- bool keys accept their documented spellings and reject the rest\n");
-    const pdht::Config yes = LoadFrom("bool_yes",
+    const pdht::legacy::Config yes = LoadFrom("bool_yes",
         "[Tracking]\nEnableOnStartup=TRUE\nInvertPitch=Yes\n"
         "[Position]\nEnabled=on\n");
     Check(yes.enableOnStartup, "TRUE is true");
     Check(yes.invertPitch, "Yes is true");
     Check(yes.positionEnabled, "on is true");
 
-    const pdht::Config no = LoadFrom("bool_no",
+    const pdht::legacy::Config no = LoadFrom("bool_no",
         "[Tracking]\nEnableOnStartup=False\nWorldSpaceYaw=NO\n"
         "[Position]\nEnabled=Off\n");
     Check(!no.enableOnStartup, "False is false");
     Check(!no.worldSpaceYaw, "NO is false");
     Check(!no.positionEnabled, "Off is false");
 
-    const pdht::Config junk = LoadFrom("bool_junk",
+    const pdht::legacy::Config junk = LoadFrom("bool_junk",
         "[Tracking]\nEnableOnStartup=disabled\n[Position]\nEnabled=nope\n");
-    const pdht::Config defaults;
+    const pdht::legacy::Config defaults;
     Check(junk.enableOnStartup == defaults.enableOnStartup,
           "an unrecognised bool keeps the default");
     Check(junk.positionEnabled == defaults.positionEnabled,
@@ -358,14 +360,14 @@ void TestBoolsAcceptTheirWholeVocabulary() {
 // 0x0E - an unassigned VK that silently never fires.
 void TestKeyCodesRejectNonHexText() {
     std::printf("-- key codes reject text that is not a hex code\n");
-    const pdht::Config defaults;
-    const pdht::Config c = LoadFrom("key_text",
+    const pdht::legacy::Config defaults;
+    const pdht::legacy::Config c = LoadFrom("key_text",
         "[Controls]\nKeyToggle=End\nKeyCycleMode=PageUp\nKeyYawMode=0xZZ\n");
     CheckEq(c.keyToggle, defaults.keyToggle, "a key NAME is rejected, not read as 0x0E");
     CheckEq(c.keyCycleMode, defaults.keyCycleMode, "another key name is rejected");
     CheckEq(c.keyYawMode, defaults.keyYawMode, "a malformed hex literal is rejected");
 
-    const pdht::Config ok = LoadFrom("key_forms",
+    const pdht::legacy::Config ok = LoadFrom("key_forms",
         "[Controls]\nKeyToggle=0x70\nKeyCycleMode=0X71\nKeyYawMode=72\n");
     CheckEq(ok.keyToggle, 0x70, "a 0x-prefixed code is read");
     CheckEq(ok.keyCycleMode, 0x71, "an 0X-prefixed code is read");
@@ -376,7 +378,7 @@ void TestKeyCodesRejectNonHexText() {
 // 1024 must get 1024.
 void TestRangeEndpointsAreInclusive() {
     std::printf("-- documented range endpoints are accepted\n");
-    const pdht::Config lo = LoadFrom("endpoints_lo",
+    const pdht::legacy::Config lo = LoadFrom("endpoints_lo",
         "[Network]\nPort=1024\n"
         "[Tracking]\nYawSensitivity=0.1\nLocalSmoothing=0.0\n"
         "[Position]\nSensitivityX=0.0\nLimitZ=0.01\n"
@@ -388,7 +390,7 @@ void TestRangeEndpointsAreInclusive() {
     CheckNear(lo.limitZ, 0.01f, 0.0f, "the smallest documented limit is accepted");
     CheckNear(lo.fovOffsetDegrees, -40.0f, 0.0f, "the lowest documented fov offset is accepted");
 
-    const pdht::Config hi = LoadFrom("endpoints_hi",
+    const pdht::legacy::Config hi = LoadFrom("endpoints_hi",
         "[Network]\nPort=65535\n"
         "[Tracking]\nYawSensitivity=3.0\nRemoteSmoothing=1.0\n"
         "[Position]\nSensitivityZ=5.0\nLimitZ=0.5\n"
@@ -406,12 +408,12 @@ void TestRangeEndpointsAreInclusive() {
 // struct's own 0.20 default whatever the user typed.
 void TestVerticalLimitsAreBothConfigurable() {
     std::printf("-- LimitY and LimitYDown are independent, and LimitY alone is symmetric\n");
-    const pdht::Config both = LoadFrom("limit_y_both",
+    const pdht::legacy::Config both = LoadFrom("limit_y_both",
         "[Position]\nLimitY=0.30\nLimitYDown=0.05\n");
     CheckNear(both.limitY, 0.30f, 0.0f, "LimitY is the upward limit");
     CheckNear(both.limitYDown, 0.05f, 0.0f, "LimitYDown is the downward limit");
 
-    const pdht::Config mirrored = LoadFrom("limit_y_one", "[Position]\nLimitY=0.05\n");
+    const pdht::legacy::Config mirrored = LoadFrom("limit_y_one", "[Position]\nLimitY=0.05\n");
     CheckNear(mirrored.limitY, 0.05f, 0.0f, "LimitY alone is read");
     CheckNear(mirrored.limitYDown, 0.05f, 0.0f,
               "LimitY alone mirrors into the downward limit rather than leaving it at 0.20");
@@ -422,8 +424,8 @@ void TestVerticalLimitsAreBothConfigurable() {
 // they never chose.
 void TestRetiredSmoothingKeyIsIgnored() {
     std::printf("-- the retired [Tracking] Smoothing key is ignored, not applied\n");
-    const pdht::Config defaults;
-    const pdht::Config c = LoadFrom("retired_smoothing",
+    const pdht::legacy::Config defaults;
+    const pdht::legacy::Config c = LoadFrom("retired_smoothing",
         "[Tracking]\nSmoothing=0.8\n[Position]\nSmoothing=0.8\n");
     CheckNear(c.localSmoothing, defaults.localSmoothing, 0.0f,
               "the retired key does not become LocalSmoothing");
@@ -434,8 +436,8 @@ void TestRetiredSmoothingKeyIsIgnored() {
 // 0 is not a virtual key, and it doubles as the hotkey poller's unset sentinel.
 void TestKeyCodesStayVirtualKeys() {
     std::printf("-- hotkeys stay inside the virtual key range\n");
-    const pdht::Config defaults;
-    const pdht::Config c = LoadFrom("keys",
+    const pdht::legacy::Config defaults;
+    const pdht::legacy::Config c = LoadFrom("keys",
         "[Controls]\nKeyToggle=0\nKeyCycleMode=0x1FF\nKeyYawMode=0xFF\n");
     CheckEq(c.keyToggle, defaults.keyToggle, "key code 0 falls back to the default");
     CheckEq(c.keyCycleMode, defaults.keyCycleMode, "a key code past 0xFE falls back");

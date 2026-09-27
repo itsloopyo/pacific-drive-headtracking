@@ -41,6 +41,7 @@ add_library(PacificDriveHeadTracking SHARED
     src/dllmain.cpp
     src/mod.cpp
     src/config.cpp
+    src/legacy_config/legacy_config.cpp
     src/camera_hook.cpp
     src/detour.cpp
     src/game_state.cpp
@@ -98,10 +99,11 @@ if(PDHT_BUILD_TESTS)
         /W4 /EHsc
         $<$<CONFIG:Release>:/O2>
     )
-    # Boundary tests for the INI, the one place the mod takes raw user input.
+    # Boundary tests for the frozen PacificDriveHeadTracking.ini reader, which
+    # imports a player's pre-canonical file.
     add_executable(pdht_config_validation
         tests/config_validation.cpp
-        src/config.cpp
+        src/legacy_config/legacy_config.cpp
     )
     target_include_directories(pdht_config_validation PRIVATE src)
     target_link_libraries(pdht_config_validation PRIVATE cameraunlock)
@@ -110,7 +112,66 @@ if(PDHT_BUILD_TESTS)
         $<$<CONFIG:Release>:/O2>
     )
 
+    # The canonical config conversion's differential test: the dev
+    # pre-release's reader (byte copies in tests/config_differential/oracle/src)
+    # and startup code against the frozen reader in src/legacy_config/.
+    set(PDHT_DIFFERENTIAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/config_differential)
+    add_executable(pdht_config_differential
+        ${PDHT_DIFFERENTIAL_DIR}/differential_tests.cpp
+        ${PDHT_DIFFERENTIAL_DIR}/oracle/oracle_reader.cpp
+        src/legacy_config/legacy_config.cpp
+    )
+    target_include_directories(pdht_config_differential PRIVATE
+        src
+        ${PDHT_DIFFERENTIAL_DIR}
+    )
+    target_compile_definitions(pdht_config_differential PRIVATE
+        PDHT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    target_link_libraries(pdht_config_differential PRIVATE cameraunlock)
+    target_compile_options(pdht_config_differential PRIVATE
+        /W4 /EHsc
+        $<$<CONFIG:Release>:/O2>
+    )
+
+    # What the differential test compiles is pinned by hash, line endings aside:
+    # the oracle's byte copies must stay the dev build's (git show
+    # 21a4f1e:src/<file>), the core sources both readers compile must stay the
+    # ones that build was compiled with (core 7820a8c), and the frozen reader is
+    # never edited.
+    function(pdht_require_hash path expected)
+        file(READ "${path}" text)
+        string(REPLACE "\r" "" text "${text}")
+        string(SHA256 actual "${text}")
+        if(NOT actual STREQUAL expected)
+            message(FATAL_ERROR "${path} has changed (SHA-256 of its text ${actual}, pinned "
+                                "${expected}). The config differential test compares against "
+                                "exactly this file; see CMakeLists.txt.")
+        endif()
+    endfunction()
+    set(PDHT_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cameraunlock-core/cpp)
+    foreach(pinned
+            "${PDHT_DIFFERENTIAL_DIR}/oracle/src/config.cpp|1077bceeeac7c6029510b9a9bd65908b470b4a3ac83496bb4dc99e95627fbf88"
+            "${PDHT_DIFFERENTIAL_DIR}/oracle/src/config.h|1931d73c0e886508874e397fbc08f213c7b26f807bcfe8a1253c23e8267af3dd"
+            "${PDHT_CORE_DIR}/include/cameraunlock/config/ini_reader.h|a7ffb44210ff59672fa97e8e5feaa2cb3e81938fcc0334a384c68bc371b3857a"
+            "${PDHT_CORE_DIR}/src/config/ini_reader.cpp|e01515c2656aaf533bae4350dc45b702c3e3d4043935743dcc9bd5ea581fbe1c"
+            "${PDHT_CORE_DIR}/include/cameraunlock/math/finite_utils.h|c59772d698d54ade3374ee1221b74f5563a86d76f0eb34a989ef7efab389c0ad"
+            "${PDHT_CORE_DIR}/include/cameraunlock/logging/file_log.h|43bdd2ef8554c78e5f440333463750c13b95110fe672b0b6e273244df9e7d169"
+            "${PDHT_CORE_DIR}/src/logging/file_log.cpp|73c53c2baa06bbfebe8211f62678aa2b60cb95f604743d3686951ba56b87ea47"
+            "${PDHT_CORE_DIR}/include/cameraunlock/data/position_settings.h|b24dceb8e25475aebc5a468a5c7362a4a4e64204d183d1408525345f32f547f5"
+            "${PDHT_CORE_DIR}/include/cameraunlock/math/smoothing_utils.h|fc2146f8c585e5f610c7234e302f59de4945679cfa28ff479ca47477ec073f22"
+            "${PDHT_CORE_DIR}/include/cameraunlock/math/angle_utils.h|d7a905270933e3cb0c4c361d29d3fd701655498cbcd1875ea79d180468bdbe6a"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/legacy_config/legacy_config.h|f6e4e0ab3f0546dfb4ca40d62de2e8173353190bc51e4f7e9ad2846fb64ff39e"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/legacy_config/legacy_config.cpp|d2069b8beb6734c61463fcc3e724ba8246bcae2a78c9a0bb05b1318f113082c2")
+        string(REPLACE "|" ";" pair "${pinned}")
+        list(GET pair 0 pinned_path)
+        list(GET pair 1 pinned_hash)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${pinned_path}")
+        pdht_require_hash("${pinned_path}" "${pinned_hash}")
+    endforeach()
+
     enable_testing()
     add_test(NAME view_characterization COMMAND pdht_view_characterization)
     add_test(NAME config_validation COMMAND pdht_config_validation)
+    add_test(NAME config_differential COMMAND pdht_config_differential)
 endif()
