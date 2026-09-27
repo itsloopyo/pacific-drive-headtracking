@@ -4,3 +4,4 @@
 *.dll binary
 *.asi binary
 tests/config_differential/data/** -text
+PacificDriveHeadTracking.ini -text

@@ -60,12 +60,8 @@ foreach ($target in $targets) {
         Write-Host "      deployed Ultimate ASI Loader -> winmm.dll" -ForegroundColor Green
     }
 
+    # No config: the mod creates CameraUnlock.ini at first launch.
     Copy-Item $asi (Join-Path $exeDir 'PacificDriveHeadTracking.asi') -Force
-    $iniDst = Join-Path $exeDir 'PacificDriveHeadTracking.ini'
-    if (-not (Test-Path $iniDst)) {
-        Copy-Item (Join-Path $root 'PacificDriveHeadTracking.ini') $iniDst -Force
-        Write-Host "      deployed default PacificDriveHeadTracking.ini" -ForegroundColor Green
-    }
     Write-Host "      deployed PacificDriveHeadTracking.asi" -ForegroundColor Green
     $deployed++
 }

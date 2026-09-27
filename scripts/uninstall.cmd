@@ -17,12 +17,12 @@ set "MOD_INTERNAL_NAME=PacificDriveHeadTracking"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"
 set "LEGACY_DLLS=HeadTracking.log HeadTracking.prev.log"
-set "MOD_SEED_FILES=PacificDriveHeadTracking.ini"
+set "MOD_SEED_FILES="
 :: Config files the uninstall leaves in place so the player's settings survive a
 :: reinstall: paths relative to the game folder, quoted when one holds a space.
 :: Keep the line when it is blank, or the list another mod's uninstall.cmd set
 :: in the same console is used instead.
-set "PRESERVE_FILES="
+set "PRESERVE_FILES=PenDriverPro\Binaries\Win64\CameraUnlock.ini PenDriverPro\Binaries\Win64\PacificDriveHeadTracking.ini PenDriverPro\Binaries\WinGDK\CameraUnlock.ini PenDriverPro\Binaries\WinGDK\PacificDriveHeadTracking.ini"
 set "PLUGIN_SUBFOLDER="
 set "MANAGED_SUBFOLDER="
 set "ASSEMBLY_DLL="

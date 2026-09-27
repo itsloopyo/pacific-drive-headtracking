@@ -84,6 +84,7 @@ try {
     $current = $verLine.Matches[0].Groups[1].Value
     $new = Resolve-ReleaseVersion -Argument $Version -CurrentVersion $current
     if (-not $new) { throw "Usage: pixi run release <major|minor|patch|nightly|X.Y.Z>" }
+    Assert-ReleaseNotBelowCanonicalSince -RepoRoot $root -Version $new
 
     # New-ReleaseTag pushes to `main`, so releasing from any other branch would
     # push commits the branch does not contain. Gate before anything mutates.
@@ -140,7 +141,7 @@ try {
     # checkout where build/ was never configured.
     & pixi run package
     if ($LASTEXITCODE -ne 0) { throw 'Build/packaging failed' }
-    & pixi run validate
+    & pixi run validate-manifest
     if ($LASTEXITCODE -ne 0) { throw 'launcher-manifest.json does not describe the installer ZIP' }
 
     Invoke-VersionCommit -Version $new -Files $versionFiles | Out-Null

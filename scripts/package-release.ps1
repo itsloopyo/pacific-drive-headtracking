@@ -13,15 +13,6 @@ $version = $verLine.Matches[0].Groups[1].Value
 $asi = Join-Path $root 'build/Release/PacificDriveHeadTracking.asi'
 if (-not (Test-Path $asi)) { throw "Build output missing: $asi. Run 'pixi run build' first." }
 
-# The manifest's loader.seed is a base64 copy of PacificDriveHeadTracking.ini,
-# and it is what a launcher-deployed user actually gets. The committed manifest
-# is the authoritative copy of it: reviewable, diffable and in git, where the
-# blob inside the ZIP is a build product. Refreshing the blob from disk here
-# would ship a correct ZIP over a stale committed file, so drift fails the build
-# and gets re-stamped in a commit instead.
-$manifestPath = Join-Path $root 'launcher-manifest.json'
-Assert-ManifestSeedsMatchShipped -ManifestPath $manifestPath -ProjectRoot $root
-
 $rel = Join-Path $root 'release'
 # No -ErrorAction SilentlyContinue: a locked release/ (an open Explorer window,
 # a running AV scan, a ZIP still held) would otherwise be swallowed, staging
@@ -33,9 +24,10 @@ $plugins = Join-Path $stage 'plugins'
 $vendorDst = Join-Path $stage 'vendor/ultimate-asi-loader'
 New-Item -ItemType Directory -Force $plugins, $vendorDst | Out-Null
 
-# Plugin payload
+# Plugin payload. No config: the mod creates CameraUnlock.ini at first launch,
+# and imports PacificDriveHeadTracking.ini from an earlier build when one is
+# there.
 Copy-Item $asi $plugins -Force
-Copy-Item (Join-Path $root 'PacificDriveHeadTracking.ini') $plugins -Force
 
 # Installer scripts + game-detection shim. Copy-SharedBundle stages the whole
 # shim set (find-game.ps1, GamePathDetection.psm1, games.json); hand-copying
@@ -73,7 +65,6 @@ if (-not $NoNexus) {
     $nexusStage = Join-Path $rel 'nexus'
     New-Item -ItemType Directory -Force $nexusStage | Out-Null
     Copy-Item $asi $nexusStage -Force
-    Copy-Item (Join-Path $root 'PacificDriveHeadTracking.ini') $nexusStage -Force
     $nexusZip = Join-Path $rel "PacificDriveHeadTracking-v$version-nexus.zip"
     # The Nexus ZIP is a binary distribution too: the licences of everything
     # compiled into or bundled with the payload require their notices to travel

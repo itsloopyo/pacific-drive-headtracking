@@ -74,12 +74,12 @@ route reaches the same files. To do the install by hand:
 2. Copy `dinput8.dll` from the ZIP's `vendor\ultimate-asi-loader\` folder into
    that directory and rename it to `winmm.dll`. Skip this step if you already
    run an ASI loader for Pacific Drive.
-3. Copy `PacificDriveHeadTracking.asi` and `PacificDriveHeadTracking.ini` into
-   the same directory.
+3. Copy `PacificDriveHeadTracking.asi` into the same directory. The mod creates
+   `CameraUnlock.ini` there the first time it starts.
 
 The Nexus ZIP (`PacificDriveHeadTracking-v<version>-nexus.zip`) carries only the
-`.asi` and the `.ini`, for mod managers and for anyone who already has an ASI
-loader installed.
+`.asi`, for mod managers and for anyone who already has an ASI loader
+installed.
 
 ## Setting Up OpenTrack
 
@@ -144,7 +144,9 @@ view sits off to one side, centre it in the tracker.
 
 ## Controls
 
-Two equivalent binding sets. Use whichever your keyboard has.
+Two equivalent binding sets. Use whichever your keyboard has. Both are the
+defaults of the key lists in `CameraUnlock.ini` (see Configuration), where each
+action can be given other keys.
 
 | Action | Nav-cluster | Chord |
 |---|---|---|
@@ -158,83 +160,118 @@ then position only, then back to full.
 Toggling the yaw mode switches between world-space yaw, the default, where head
 yaw turns the view about the world up axis so the horizon stays level however
 the game camera is pitched, and camera-local yaw, where head yaw turns the view
-about the camera's own up axis. The switch lasts until you restart the game;
-`WorldSpaceYaw` in the INI sets what it starts as.
+about the camera's own up axis.
+
+The tracking mode and the yaw mode are saved to `CameraUnlock.ini` the moment
+you change them, so the game starts in them next time. Toggling tracking with
+`End` lasts for the session only; whether tracking starts on is
+`EnableOnStartup`.
 
 Centring is done in your tracker: OpenTrack's Center bind, SteamVR's reset view,
 or the CENTER button in a phone app.
 
 ## Configuration
 
-The mod writes `PacificDriveHeadTracking.ini` next to the game executable, in
-the folder for your store listed under [Manual
-Installation](#manual-installation). Delete it to restore defaults.
+<!-- cameraunlock:config -->
+The mod reads its settings from `CameraUnlock.ini` in the game folder, at one of these paths depending on the store the game came from:
+
+- `PenDriverPro\Binaries\Win64\CameraUnlock.ini`
+- `PenDriverPro\Binaries\WinGDK\CameraUnlock.ini`
+
+It creates the file when it starts and finds none. Edit it with any text editor.
+
+A setting set to `default` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+
+`Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+
+When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app. The mod never changes `Defaults.ini` after that. Edit it with any text editor.
+
+The built-in value of each setting set to `default` below:
+
+- `UdpPort=4242`
+- `EnableOnStartup=true`
+- `WorldSpaceYaw=true`
+- `RotationEnabled=true`
+- `LocalSmoothing=0.0`
+- `RemoteSmoothing=0.15`
+- `PositionEnabled=true`
+- `PositionLimitX=0.3`
+- `PositionLimitY=0.2`
+- `PositionLimitYDown=0.2`
+- `PositionLimitZ=0.4`
+- `PositionLimitZBack=0.1`
+- `ToggleKey=End, Ctrl+Shift+Y`
+- `CycleTrackingModeKey=PageUp, Ctrl+Shift+G`
+- `YawModeKey=PageDown, Ctrl+Shift+H`
+
+With every setting at its default, the file reads:
 
 ```ini
-[Network]
-; OpenTrack UDP port. Range 1024 to 65535; anything else falls back to 4242 and
-; says so in the log.
-Port=4242
+; Pacific Drive head tracking settings.
+; Comments start with ; and go on their own line. Text after a value is part of the value.
+; Hotkeys are key names such as End, PageUp or Ctrl+Shift+Y. Separate several with commas; leave empty for none.
+; A setting set to default takes its value from Defaults.ini, which every head tracking mod
+; that keeps its settings in CameraUnlock.ini reads: %AppData%\CameraUnlock\Defaults.ini on
+; Windows, $XDG_CONFIG_HOME/CameraUnlock/Defaults.ini (normally ~/.config/CameraUnlock) on
+; Linux, under Wine and Proton too, and ~/Library/Application Support/CameraUnlock/Defaults.ini
+; on macOS. The log names the file it read. Write a value instead of default to change that
+; setting for this game only.
 
-[Tracking]
-; Yes/no keys accept 1/0, true/false, yes/no or on/off. Anything else is
-; reported in the log and the default is used.
-EnableOnStartup=1
-; Rotation sensitivities, range 0.1 to 3.0.
-YawSensitivity=1.0
-PitchSensitivity=1.0
-RollSensitivity=1.0
-InvertYaw=0
-InvertPitch=0
-InvertRoll=0
-; Yaw mode: 1 = horizon-locked yaw about world up (default), 0 = camera-local.
-WorldSpaceYaw=1
-; Smoothing applied when the tracker runs on this machine (loopback).
-; 0 = no smoothing, 1 = heavy.
-LocalSmoothing=0.0
-; Smoothing applied when the tracker is a remote device on the network, such as
-; a phone on WiFi.
-RemoteSmoothing=0.15
+[CameraUnlock]
+; Written by the mod. Leave this section in place.
+ConfigFormat=1
+
+[Network]
+; UDP port the mod receives tracker data on (OpenTrack protocol).
+UdpPort=default
+
+[General]
+; true: head tracking is on when the game starts. ToggleKey turns it on and off.
+EnableOnStartup=default
+; true: yaw turns around the world's up axis. false: around the camera's own up axis.
+WorldSpaceYaw=default
+; true: turning your head turns the view.
+; Tracking mode at startup, with PositionEnabled. The mode hotkey changes both.
+RotationEnabled=default
+
+[Smoothing]
+; Smoothing when the tracker runs on this PC. 0 is the least, 1 the most.
+LocalSmoothing=default
+; Smoothing when the tracker is another device on the network, such as a phone.
+; 0 is the least, 1 the most.
+RemoteSmoothing=default
 
 [Position]
-; Position uses the same LocalSmoothing / RemoteSmoothing values as rotation.
-Enabled=1
-; Position sensitivities, range 0.0 to 5.0.
-SensitivityX=1.0
-SensitivityY=1.0
-SensitivityZ=1.0
-; Lean limits in metres, range 0.01 to 0.5.
-LimitX=0.30
-; LimitY is the UPWARD limit, LimitYDown the downward one. Delete LimitYDown to
-; mirror LimitY, which is the symmetric case; set it lower than LimitY if
-; crouching wants a tighter range than standing.
-LimitY=0.20
-LimitYDown=0.20
-; Leaning forward gets more room than leaning back, so you do not clip through
-; the seat.
-LimitZ=0.40
-LimitZBack=0.10
+; true: moving your head moves the view.
+; Tracking mode at startup, with RotationEnabled. The mode hotkey changes both.
+PositionEnabled=default
+; How far, in metres, leaning left or right can move the view.
+PositionLimitX=default
+; How far, in metres, raising your head can move the view.
+PositionLimitY=default
+; How far, in metres, lowering your head can move the view.
+PositionLimitYDown=default
+; How far, in metres, leaning forward can move the view.
+PositionLimitZ=default
+; How far, in metres, leaning back can move the view.
+PositionLimitZBack=default
+
+[Hotkeys]
+; Turns head tracking on and off.
+ToggleKey=default
+; Changes the tracking mode: rotation and position, rotation only, position only.
+CycleTrackingModeKey=default
+; Switches yaw between the world's up axis and the camera's own (WorldSpaceYaw).
+YawModeKey=default
 
 [Camera]
-; Degrees ADDED to the game's own field of view. Pacific Drive has no FOV
-; setting of its own, so this is the only way to change it. It is an offset
-; rather than a fixed number because the game already uses a wider FOV in the
-; car than on foot and widens it further with speed, and pinning one value
-; would flatten all of that. 0 renders exactly what the game asked for.
-; Range -40 to 60; anything outside is clamped and logged. The crosshair,
-; interaction highlights and objective markers are all corrected for it, and
-; the view point the game uses for interaction traces and AI is untouched.
+; Degrees added to the game's field of view, -40 to 60. 0 renders what the game
+; asks for. The game has no field of view setting of its own, and widens its view
+; in the car and with speed; this adds to that rather than replacing it.
+; HeadTracking.log shows the field of view the game draws at on its fov line.
 FovOffset=0.0
-
-[Controls]
-; Windows virtual-key codes in hex, NOT key names: End is 0x23, not "End".
-; The Ctrl+Shift chords are always active in addition to these.
-; Range 0x01 to 0xFE. HeadTracking.log names the key each binding resolved to
-; at startup, so check that line after changing one.
-KeyToggle=0x23
-KeyCycleMode=0x21
-KeyYawMode=0x22
 ```
+<!-- /cameraunlock:config -->
 
 ## Troubleshooting
 
@@ -273,8 +310,8 @@ the previous session is kept as `HeadTracking.prev.log`.
 
 **Wrong rotation axis**
 
-- A single axis moves the wrong way: set `InvertYaw`, `InvertPitch` or
-  `InvertRoll` to `1` in the INI.
+- A single axis moves the wrong way: invert that axis in your tracker. The mod
+  applies the pose as the tracker sends it.
 - Yaw feels wrong when you look steeply up or down: toggle between world-locked
   and camera-local yaw with `Page Down` or `Ctrl+Shift+H`.
 - The whole view sits off to one side: centre it in your tracker, using
@@ -283,7 +320,8 @@ the previous session is kept as `HeadTracking.prev.log`.
 
 ## Updating
 
-Download the new release and run `install.cmd` again. Your config is preserved.
+Download the new release and run `install.cmd` again. Your `CameraUnlock.ini` is
+kept.
 
 ## Uninstalling
 

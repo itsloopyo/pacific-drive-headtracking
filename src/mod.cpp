@@ -7,9 +7,13 @@
 #endif
 #include <windows.h>
 
+#include <stdexcept>
 #include <string>
+#include <vector>
 
-#include "cameraunlock/input/chord_hotkeys.h"
+#include "cameraunlock/config/defaults_file.h"
+#include "cameraunlock/input/key_binding_registration.h"
+#include "cameraunlock/input/key_bindings.h"
 #include "cameraunlock/logging/file_log.h"
 #include "cameraunlock/math/smoothing_utils.h"
 #include "cameraunlock/memory/pe_fingerprint.h"
@@ -20,11 +24,6 @@ namespace pdht {
 
 namespace log = cameraunlock::logging;
 using cameraunlock::TrackingMode;
-
-// Chord cluster letters (Ctrl+Shift+<letter>), per doctrine ordering.
-static constexpr int kVkY = 0x59;  // toggle tracking
-static constexpr int kVkG = 0x47;  // cycle tracking mode
-static constexpr int kVkH = 0x48;  // toggle yaw mode
 
 // Deliberately leaked, so no destructor is registered in the module's onexit
 // table. A function-local `static Mod instance` would be destroyed by the CRT
@@ -43,29 +42,6 @@ static std::wstring ExeDir() {
     std::wstring path(buf);
     size_t slash = path.find_last_of(L"\\/");
     return slash == std::wstring::npos ? L"." : path.substr(0, slash);
-}
-
-// IniReader takes a narrow path and hands it to GetPrivateProfileStringA, which
-// decodes with the process ANSI code page. So the conversion has to be CP_ACP,
-// not CP_UTF8: a UTF-8 path arrives as ANSI mojibake, the file is never found,
-// and because Config::Load reported that identically to a genuinely absent file,
-// the whole INI silently stopped applying - port, FOV offset, hotkeys, limits.
-// A Steam library under a non-Latin folder name reproduces it. The log path is
-// wide and so was never affected, which is what made the log look healthy.
-//
-// CP_ACP cannot represent every path either. WideCharToMultiByte reports that
-// through the default-char flag, and a path it cannot round-trip is worth saying
-// out loud rather than becoming another silent default-config session.
-static std::string WideToAnsi(const std::wstring& wide, bool& lossy) {
-    lossy = false;
-    const int n =
-        WideCharToMultiByte(CP_ACP, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (n <= 0) return std::string();
-    std::string out(static_cast<size_t>(n - 1), '\0');
-    BOOL usedDefault = FALSE;
-    WideCharToMultiByte(CP_ACP, 0, wide.c_str(), -1, out.data(), n, "?", &usedDefault);
-    lossy = usedDefault != FALSE;
-    return out;
 }
 
 void Mod::Run() {
@@ -105,47 +81,30 @@ void Mod::LogGameModuleFingerprint() const {
 }
 
 void Mod::LoadConfig() {
-    bool lossy = false;
-    const std::string iniPath =
-        WideToAnsi(ExeDir() + L"\\PacificDriveHeadTracking.ini", lossy);
-    if (lossy) {
-        log::Line("The game directory contains characters this system's ANSI code page "
-                  "cannot represent, so PacificDriveHeadTracking.ini cannot be opened by "
-                  "path. The mod runs on defaults.");
-    }
-    m_config.Load(iniPath);
+    m_config = config::Load(ExeDir(), cameraunlock::config::DefaultsFile::PerUser());
     m_enabled.store(m_config.enableOnStartup);
     m_worldSpaceYaw.store(m_config.worldSpaceYaw);
-    log::Line("Config: port=%u enableOnStartup=%d position=%d localSmoothing=%.2f remoteSmoothing=%.2f "
-              "worldSpaceYaw=%d",
-              m_config.port, m_config.enableOnStartup, m_config.positionEnabled,
-              m_config.localSmoothing, m_config.remoteSmoothing, m_config.worldSpaceYaw);
+    log::Line("Config: port=%d enableOnStartup=%d rotation=%d position=%d localSmoothing=%.2f "
+              "remoteSmoothing=%.2f worldSpaceYaw=%d fovOffset=%.1f",
+              m_config.udpPort, m_config.enableOnStartup, m_config.rotationEnabled,
+              m_config.positionEnabled, m_config.localSmoothing, m_config.remoteSmoothing,
+              m_config.worldSpaceYaw, m_config.fovOffsetDegrees);
 }
 
 void Mod::StartReceiver() {
     m_receiver.SetLog([](const std::string& msg) { log::Line("[UDP] %s", msg.c_str()); });
-    if (m_receiver.Start(m_config.port)) {
-        log::Line("UDP receiver listening on port %u", m_config.port);
+    const auto port = static_cast<uint16_t>(m_config.udpPort);
+    if (m_receiver.Start(port)) {
+        log::Line("UDP receiver listening on port %u", port);
     } else {
-        log::Line("UDP receiver could not bind port %u immediately; retrying in background", m_config.port);
+        log::Line("UDP receiver could not bind port %u immediately; retrying in background", port);
     }
 }
 
 void Mod::ApplyConfigToSession() {
-    auto& proc = m_session->GetProcessor();
-    cameraunlock::SensitivitySettings sens{};
-    sens.yaw = m_config.yawSensitivity;
-    sens.pitch = m_config.pitchSensitivity;
-    sens.roll = m_config.rollSensitivity;
-    sens.invert_yaw = m_config.invertYaw;
-    sens.invert_pitch = m_config.invertPitch;
-    sens.invert_roll = m_config.invertRoll;
-    proc.SetSensitivity(sens);
-
+    // Sensitivity and inversion stay at the processors' identity defaults: the
+    // tracker shapes the pose, and the mod applies it as it arrives.
     cameraunlock::PositionSettings ps{};
-    ps.sensitivity_x = m_config.positionSensitivityX;
-    ps.sensitivity_y = m_config.positionSensitivityY;
-    ps.sensitivity_z = m_config.positionSensitivityZ;
     ps.limit_x = m_config.limitX;
     ps.limit_y = m_config.limitY;
     ps.limit_y_down = m_config.limitYDown;
@@ -164,8 +123,7 @@ void Mod::ApplyConfigToSession() {
     m_session->SetLocalSmoothing(m_config.localSmoothing);
     m_session->SetRemoteSmoothing(m_config.remoteSmoothing);
 
-    m_session->SetMode(m_config.positionEnabled ? TrackingMode::RotationAndPosition
-                                                : TrackingMode::RotationOnly);
+    m_session->SetMode(config::StartupTrackingMode(m_config));
 }
 
 void Mod::LogConnectionChange() {
@@ -180,49 +138,53 @@ void Mod::LogConnectionChange() {
               isRemote ? "remote" : "local", effective);
 }
 
-void Mod::RegisterHotkeys() {
-    using cameraunlock::input::ChordGuarded;
-    using cameraunlock::input::NavGuarded;
-
-    auto toggle = [this]() { ToggleTracking(); };
-    auto cycleMode = [this]() { CycleTrackingMode(); };
-    auto yawMode = [this]() { ToggleYawMode(); };
-
-    m_hotkeys.AddHotkey(m_config.keyToggle, NavGuarded(toggle));
-    m_hotkeys.AddHotkey(m_config.keyCycleMode, NavGuarded(cycleMode));
-    m_hotkeys.AddHotkey(m_config.keyYawMode, NavGuarded(yawMode));
-
-    m_hotkeys.AddHotkey(kVkY, ChordGuarded(toggle));
-    m_hotkeys.AddHotkey(kVkG, ChordGuarded(cycleMode));
-    m_hotkeys.AddHotkey(kVkH, ChordGuarded(yawMode));
-
-    m_hotkeys.Start();
-    // The keys ACTUALLY bound, not the defaults. Hardcoding the default names
-    // meant a user who rebound to F10 read a log claiming Toggle=End, concluded
-    // their edit had been ignored, and had no way to see that a value like
-    // `KeyToggle=F1` had bound 0xF1 rather than the F1 key.
-    using cameraunlock::input::VirtualKeyToString;
-    log::Line("Hotkeys: Toggle=%s(0x%X)/Ctrl+Shift+Y  Cycle mode=%s(0x%X)/Ctrl+Shift+G  "
-              "Yaw mode=%s(0x%X)/Ctrl+Shift+H",
-              VirtualKeyToString(m_config.keyToggle), m_config.keyToggle,
-              VirtualKeyToString(m_config.keyCycleMode), m_config.keyCycleMode,
-              VirtualKeyToString(m_config.keyYawMode), m_config.keyYawMode);
+// The table's hotkey codec only lets through a list this parser reads.
+static std::vector<cameraunlock::input::KeyBinding> Bindings(const char* key, const std::string& list) {
+    const cameraunlock::input::KeyBindingsParseResult parsed = cameraunlock::input::ParseKeyBindings(list);
+    if (!parsed.ok()) throw std::logic_error(std::string(key) + "='" + list + "': " + parsed.error);
+    return parsed.bindings;
 }
 
+void Mod::RegisterHotkeys() {
+    using cameraunlock::input::RegisterKeyBindings;
+
+    // Each list holds every key that fires its action, the Ctrl+Shift chord
+    // included. A key without modifiers stays silent while Ctrl and Shift are
+    // both held, so Ctrl+Shift+<key> reaches only a binding that names the
+    // chord.
+    RegisterKeyBindings(m_hotkeys, Bindings("ToggleKey", m_config.toggleKey), [this]() { ToggleTracking(); });
+    RegisterKeyBindings(m_hotkeys, Bindings("CycleTrackingModeKey", m_config.cycleTrackingModeKey),
+                        [this]() { CycleTrackingMode(); });
+    RegisterKeyBindings(m_hotkeys, Bindings("YawModeKey", m_config.yawModeKey), [this]() { ToggleYawMode(); });
+
+    m_hotkeys.Start();
+    log::Line("Hotkeys: Toggle=[%s]  Cycle mode=[%s]  Yaw mode=[%s]", m_config.toggleKey.c_str(),
+              m_config.cycleTrackingModeKey.c_str(), m_config.yawModeKey.c_str());
+}
+
+// End changes this session only; EnableOnStartup decides the next one.
 void Mod::ToggleTracking() {
     bool now = !m_enabled.load();
     m_enabled.store(now);
     log::Line("Tracking %s", now ? "ENABLED" : "disabled");
 }
 
+// The next mode is computed from the one the camera worker last applied, so two
+// presses before it runs are one step, as they always were. The worker applies
+// it; this thread saves it.
 void Mod::CycleTrackingMode() {
-    m_modeCycleRequested.store(true);
+    const auto next = static_cast<TrackingMode>((static_cast<int>(m_session->GetMode()) + 1) % 3);
+    m_desiredMode.store(static_cast<int>(next));
+    m_modeChangeRequested.store(true);
+    config::SaveTrackingMode(next);
 }
 
 void Mod::ApplyPendingModeChange() {
     if (!m_session) return;
-    if (!m_modeCycleRequested.exchange(false)) return;
-    switch (m_session->CycleMode()) {
+    if (!m_modeChangeRequested.exchange(false)) return;
+    const auto mode = static_cast<TrackingMode>(m_desiredMode.load());
+    m_session->SetMode(mode);
+    switch (mode) {
         case TrackingMode::RotationAndPosition:
             log::Line("Tracking mode: rotation and position");
             break;
@@ -239,6 +201,7 @@ void Mod::ToggleYawMode() {
     const bool now = !m_worldSpaceYaw.load();
     m_worldSpaceYaw.store(now);
     log::Line("Yaw mode: %s", now ? "world-space (horizon-locked)" : "camera-local");
+    config::SaveWorldSpaceYaw(now);
 }
 
 }  // namespace pdht

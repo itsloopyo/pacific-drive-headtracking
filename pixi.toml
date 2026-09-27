@@ -18,15 +18,21 @@ build-release = { depends-on = ["build"] }
 # config boundary tests or config differential test fail.
 package = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test"] }
 # The fleet's own manifest gate, run against the ZIP that was just built:
-# delivery_mode must be "manifest" and every path the launcher will read has to
-# exist inside the package. It shipped a manifest the gate rejects because
-# nothing ever ran it.
-validate = "node cameraunlock-core/scripts/validate-manifest.mjs"
+# delivery_mode must be "manifest", every path the launcher will read has to
+# exist inside the package, the config descriptor must match the repo, and
+# neither ZIP may carry CameraUnlock.ini or PacificDriveHeadTracking.ini.
+validate-manifest = "node cameraunlock-core/scripts/validate-manifest.mjs"
 # Its own build dir, so the shipped target is never configured with
 # PDHT_BUILD_TESTS on.
 configure-tests = "cmake -S . -B build-tests -A x64 -DPDHT_BUILD_TESTS=ON"
-build-tests = { cmd = "cmake --build build-tests --config Release --target pdht_view_characterization pdht_config_validation pdht_config_differential", depends-on = ["configure-tests"] }
+build-tests = { cmd = "cmake --build build-tests --config Release --target pdht_view_characterization pdht_config_tests pdht_config_validation pdht_config_differential", depends-on = ["configure-tests"] }
+# Runs core's canonical config lint with node, from PATH like validate-manifest.
 test = { cmd = "ctest --test-dir build-tests -C Release --output-on-failure", depends-on = ["build-tests"] }
+# Rewrites PacificDriveHeadTracking.ini, the committed config, from the config
+# table after a change to a row, a comment or a default, then the launcher
+# manifest's config descriptor per_game from it. pdht_config_tests fails until
+# it has run.
+render-config = { cmd = "build-tests/Release/pdht_config_tests.exe --render-config PacificDriveHeadTracking.ini && node cameraunlock-core/scripts/encode-seed.mjs", depends-on = ["build-tests"] }
 install = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy.ps1", depends-on = ["build"] }
 uninstall = "cmd /c scripts\\uninstall.cmd"
 update-deps = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-deps.ps1"

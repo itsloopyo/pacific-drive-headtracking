@@ -450,7 +450,7 @@ void CameraHook::LogHeartbeat() {
     const auto& rx = m_mod.Receiver();
     log::Line("[CameraHook][hb]   udp port=%u bound=%d retrying=%d receiving=%d "
               "rejected=%llu frozen=%llu",
-              m_mod.GetConfig().port, rx.IsRunning() ? 1 : 0, rx.IsRetrying() ? 1 : 0,
+              m_mod.GetConfig().udpPort, rx.IsRunning() ? 1 : 0, rx.IsRetrying() ? 1 : 0,
               rx.IsReceiving() ? 1 : 0,
               static_cast<unsigned long long>(rx.GetRejectedPacketCount()),
               static_cast<unsigned long long>(rx.GetFrozenPacketCount()));
@@ -479,7 +479,7 @@ void CameraHook::Worker() {
     int beats = 0;
     // "No head tracking" with a healthy log and a silent tracker looks identical
     // to a mod fault from the outside, and it cost a debugging round. Say so.
-    TrackerSilenceWatch silence(m_mod.Receiver().IsRetrying(), m_mod.GetConfig().port, start);
+    TrackerSilenceWatch silence(m_mod.Receiver().IsRetrying(), m_mod.GetConfig().udpPort, start);
 
     for (;;) {
         const auto now = clock::now();

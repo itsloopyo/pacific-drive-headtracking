@@ -99,10 +99,28 @@ if(PDHT_BUILD_TESTS)
         /W4 /EHsc
         $<$<CONFIG:Release>:/O2>
     )
+
+    # The canonical config, the committed file and the toggles' saves. Also the
+    # renderer behind `pixi run render-config` (--render-config <path>).
+    add_executable(pdht_config_tests
+        tests/config_tests.cpp
+        src/config.cpp
+        src/legacy_config/legacy_config.cpp
+    )
+    target_include_directories(pdht_config_tests PRIVATE src)
+    target_link_libraries(pdht_config_tests PRIVATE cameraunlock)
+    target_compile_definitions(pdht_config_tests PRIVATE PDHT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_options(pdht_config_tests PRIVATE
+        /W4 /EHsc
+        $<$<CONFIG:Release>:/O2>
+    )
+
+    set(PDHT_DIFFERENTIAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/config_differential)
+
     # Boundary tests for the frozen PacificDriveHeadTracking.ini reader, which
     # imports a player's pre-canonical file.
     add_executable(pdht_config_validation
-        tests/config_validation.cpp
+        ${PDHT_DIFFERENTIAL_DIR}/legacy_reader_tests.cpp
         src/legacy_config/legacy_config.cpp
     )
     target_include_directories(pdht_config_validation PRIVATE src)
@@ -114,11 +132,12 @@ if(PDHT_BUILD_TESTS)
 
     # The canonical config conversion's differential test: the dev
     # pre-release's reader (byte copies in tests/config_differential/oracle/src)
-    # and startup code against the frozen reader in src/legacy_config/.
-    set(PDHT_DIFFERENTIAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/config_differential)
+    # and startup code against the frozen reader in src/legacy_config/, and that
+    # reader against the config owner's migration into CameraUnlock.ini.
     add_executable(pdht_config_differential
         ${PDHT_DIFFERENTIAL_DIR}/differential_tests.cpp
         ${PDHT_DIFFERENTIAL_DIR}/oracle/oracle_reader.cpp
+        src/config.cpp
         src/legacy_config/legacy_config.cpp
     )
     target_include_directories(pdht_config_differential PRIVATE
@@ -173,5 +192,12 @@ if(PDHT_BUILD_TESTS)
     enable_testing()
     add_test(NAME view_characterization COMMAND pdht_view_characterization)
     add_test(NAME config_validation COMMAND pdht_config_validation)
+    add_test(NAME config_tests COMMAND pdht_config_tests)
     add_test(NAME config_differential COMMAND pdht_config_differential)
+    # Core's canonical config lint over the committed file and every file the
+    # differential test migrated, which it writes beside itself under migrated\.
+    add_test(NAME config_lint COMMAND node
+        ${PDHT_DIFFERENTIAL_DIR}/lint-migrated.mjs
+        $<TARGET_FILE_DIR:pdht_config_differential>/migrated)
+    set_tests_properties(config_lint PROPERTIES DEPENDS config_differential)
 endif()

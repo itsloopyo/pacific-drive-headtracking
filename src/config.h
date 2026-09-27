@@ -2,55 +2,49 @@
 // Copyright (c) 2026 itsloopyo / CameraUnlock
 #pragma once
 
-#include <cstdint>
 #include <string>
 
+#include "cameraunlock/config/config_concepts.g.h"
+#include "cameraunlock/config/config_owner.h"
+#include "cameraunlock/config/defaults_file.h"
+#include "cameraunlock/config/legacy_import.h"
 #include "cameraunlock/data/position_settings.h"
 #include "cameraunlock/math/smoothing_utils.h"
+#include "cameraunlock/tracking/tracking_mode.h"
 
 namespace pdht {
 
-// Mod configuration, loaded from PacificDriveHeadTracking.ini next to the
-// game exe. Defaults match the CameraUnlock doctrine (all sensitivities 1.0,
-// local smoothing 0.0, remote smoothing 0.15).
+// The settings CameraUnlock.ini holds, at their defaults.
 struct Config {
-    // [Network]
-    uint16_t port = 4242;
-
-    // [Tracking]
+    int udpPort = 4242;
     bool enableOnStartup = true;
-    float yawSensitivity = 1.0f;
-    float pitchSensitivity = 1.0f;
-    float rollSensitivity = 1.0f;
-    bool invertYaw = false;
-    bool invertPitch = false;
-    bool invertRoll = false;
     // Yaw about world up (horizon-locked) rather than the camera's own up.
     bool worldSpaceYaw = true;
+
+    // The tracking mode at startup, the pair the mode hotkey saves.
+    bool rotationEnabled = true;
+    bool positionEnabled = true;
+
     // Smoothing is chosen per connection: local for a tracker on this machine
     // (loopback), remote for a device on the network. Both cover rotation and
     // position.
     float localSmoothing = static_cast<float>(cameraunlock::math::kDefaultLocalSmoothing);
     float remoteSmoothing = static_cast<float>(cameraunlock::math::kDefaultRemoteSmoothing);
 
-    // [Position]
-    bool positionEnabled = true;
-    float positionSensitivityX = 1.0f;
-    float positionSensitivityY = 1.0f;
-    float positionSensitivityZ = 1.0f;
+    // The vertical clamp is [-limitYDown, +limitY].
     float limitX = cameraunlock::PositionSettings{}.limit_x;
-    // The vertical clamp is [-limitYDown, +limitY]. Two fields, because a
-    // tighter crouch range than standing range is a real thing to want; when
-    // LimitYDown is absent it mirrors LimitY, which is the symmetric case.
-    // Leaving limit_y_down at the core struct's own default instead meant a user
-    // who set LimitY=0.05 still got 0.20 m of downward travel, with nothing in
-    // the log or the docs saying the key was only half-effective.
     float limitY = cameraunlock::PositionSettings{}.limit_y;
     float limitYDown = cameraunlock::PositionSettings{}.limit_y_down;
     float limitZ = cameraunlock::PositionSettings{}.limit_z;
     float limitZBack = cameraunlock::PositionSettings{}.limit_z_back;
 
-    // [Camera]
+    std::string toggleKey =
+        cameraunlock::config::schema::ConceptTraits<cameraunlock::config::schema::Concept::ToggleKey>::kCanonicalDefault;
+    std::string cycleTrackingModeKey =
+        cameraunlock::config::schema::ConceptTraits<cameraunlock::config::schema::Concept::CycleTrackingModeKey>::kCanonicalDefault;
+    std::string yawModeKey =
+        cameraunlock::config::schema::ConceptTraits<cameraunlock::config::schema::Concept::YawModeKey>::kCanonicalDefault;
+
     // Degrees added to the game's own horizontal field of view. Pacific Drive
     // has no FOV setting of its own, so this is the only way to change it.
     // Additive rather than absolute because the game varies its FOV by context -
@@ -59,14 +53,43 @@ struct Config {
     // for. The log reports the measured FOV every heartbeat, which is where a
     // player who wants a specific number reads off the offset to ask for.
     float fovOffsetDegrees = 0.0f;
-
-    // [Controls] - nav-cluster keys; chord alternatives are hardwired.
-    int keyToggle = 0x23;          // End
-    int keyCycleMode = 0x21;       // Page Up
-    int keyYawMode = 0x22;         // Page Down
-
-    // Loads from the given INI path. Missing file -> all defaults.
-    void Load(const std::string& iniPath);
 };
 
 }  // namespace pdht
+
+// CameraUnlock.ini, beside the game exe, in cameraunlock-core's canonical config
+// format. One ConfigOwner reads and writes it; nothing else in the mod touches
+// it. PacificDriveHeadTracking.ini, the file every earlier build read, is
+// imported once while CameraUnlock.ini is absent and is never written.
+namespace pdht::config {
+
+cameraunlock::config::ConfigTable<Config> Table();
+
+cameraunlock::config::RenderHeader Header();
+
+// PacificDriveHeadTracking.ini through the frozen reader in src/legacy_config/,
+// mapped into Config.
+cameraunlock::config::LegacyImport<Config> Import();
+
+// The owner's options for CameraUnlock.ini in `exeDir`, a full path, with
+// PacificDriveHeadTracking.ini beside it as the legacy file and Defaults.ini
+// where `defaults` says.
+cameraunlock::config::ConfigOwnerOptions<Config> OwnerOptions(const std::wstring& exeDir,
+                                                              cameraunlock::config::DefaultsFile defaults);
+
+// Reads, imports or creates CameraUnlock.ini in `exeDir`, logs what the owner
+// reports, and returns the settings the session runs on. Call once, from the
+// bootstrap thread, with the log open. `defaults` is DefaultsFile::PerUser() in
+// the mod.
+Config Load(const std::wstring& exeDir, cameraunlock::config::DefaultsFile defaults);
+
+// The tracking mode the settings start in. The table never gives both rows
+// false.
+cameraunlock::TrackingMode StartupTrackingMode(const Config& config);
+
+// Saves the value a hotkey has just applied. The session keeps it whether or
+// not the save succeeds; a failed save is logged. Called on the hotkey thread.
+void SaveWorldSpaceYaw(bool worldSpaceYaw);
+void SaveTrackingMode(cameraunlock::TrackingMode mode);
+
+}  // namespace pdht::config

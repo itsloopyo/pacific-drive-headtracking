@@ -34,14 +34,16 @@ public:
     // camera hook, flipped by the hotkey thread.
     bool WorldSpaceYaw() const { return m_worldSpaceYaw.load(); }
     void ToggleTracking();
-    // Called from the hotkey thread. Raises a request rather than touching the
-    // pipeline: HeadTrackingSession::SetMode resets the position processor's
-    // smoothing and the interpolator when position goes off, and the camera
-    // worker is inside Session().Update() reading exactly that state.
+    // Called from the hotkey thread. Stores the next mode and raises a request
+    // rather than touching the pipeline: HeadTrackingSession::SetMode resets the
+    // position processor's smoothing and the interpolator when position goes
+    // off, and the camera worker is inside Session().Update() reading exactly
+    // that state. Then saves the mode.
     void CycleTrackingMode();
-    // Consumes a pending CycleTrackingMode(). Called by the camera worker, which
+    // Applies a pending CycleTrackingMode(). Called by the camera worker, which
     // is the thread that owns the pipeline.
     void ApplyPendingModeChange();
+    // Called from the hotkey thread; saves the new yaw mode.
     void ToggleYawMode();
 
     // Logs which smoothing parameter is in force whenever the session switches
@@ -68,7 +70,8 @@ private:
 
     std::atomic<bool> m_enabled{true};
     std::atomic<bool> m_worldSpaceYaw{true};
-    std::atomic<bool> m_modeCycleRequested{false};
+    std::atomic<bool> m_modeChangeRequested{false};
+    std::atomic<int> m_desiredMode{0};
     bool m_started = false;
     bool m_isRemoteConnection = false;
     // Tri-state: false/false is indistinguishable from a local tracker, so a

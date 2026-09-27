@@ -73,7 +73,7 @@ jobs:
       - name: Validate packaged manifest
         shell: pwsh
         run: |
-          pixi run validate
+          pixi run validate-manifest
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::error::launcher-manifest.json does not describe the installer ZIP"
             exit 1
