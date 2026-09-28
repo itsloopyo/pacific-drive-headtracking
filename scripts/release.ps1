@@ -62,22 +62,6 @@ function Update-VersionInFile {
     Set-TextFileNoBom -Path $full -Text $updated
 }
 
-# Mirrors New-ChangelogFromCommits' insertion so a -Force maintenance entry
-# lands in the same place with the same shape.
-function Add-MaintenanceChangelogEntry {
-    param([string]$Path, [string]$NewVersion)
-    $date = Get-Date -Format 'yyyy-MM-dd'
-    $entry = "## [$NewVersion] - $date`n`n### Changed`n`n- Maintenance release (no user-facing changes).`n`n"
-    $changelog = Get-Content $Path -Raw
-    if ($changelog -match '(?s)(# Changelog.*?)(## \[)') {
-        $changelog = $changelog -replace '(?s)(# Changelog.*?\n\n)', "`$1$entry"
-    } else {
-        $changelog = $changelog -replace '(?s)(# Changelog.*?\n)', "`$1$entry"
-    }
-    $changelog = $changelog.TrimEnd() + "`n"
-    Set-TextFileNoBom -Path (Join-Path $root $Path) -Text $changelog
-}
-
 Push-Location $root
 try {
     $verLine = Select-String -Path 'src/version.h' -Pattern 'kVersion\s*=\s*"([^"]+)"'
@@ -102,19 +86,14 @@ try {
     # first release. Skipping it on an untagged repo - which is what a
     # `git tag -l` guard did - shipped v0.1.0 with a CHANGELOG whose newest
     # entry still said 0.0.0, and bypassed the all-noise abort for that release.
-    if (-not (Test-Path 'CHANGELOG.md')) {
-        Set-TextFileNoBom -Path (Join-Path $root 'CHANGELOG.md') -Text "# Changelog`n`n"
-    }
     try {
-        New-ChangelogFromCommits -ChangelogPath 'CHANGELOG.md' -Version $new | Out-Null
+        New-ChangelogFromCommits -ChangelogPath 'CHANGELOG.md' -Version $new -Maintenance:$Force | Out-Null
     } catch {
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         if (-not $Force) {
-            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
             Write-Host "No user-facing changes to release. Re-run with -Force for a maintenance release." -ForegroundColor Yellow
-            exit 1
         }
-        Write-Host "No user-facing commits since last tag - writing maintenance entry (-Force)." -ForegroundColor Yellow
-        Add-MaintenanceChangelogEntry -Path 'CHANGELOG.md' -NewVersion $new
+        exit 1
     }
 
     # Stamp the new version into every place it lives. src/version.h is
