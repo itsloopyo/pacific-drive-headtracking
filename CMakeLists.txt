@@ -200,4 +200,5 @@ if(PDHT_BUILD_TESTS)
         ${PDHT_DIFFERENTIAL_DIR}/lint-migrated.mjs
         $<TARGET_FILE_DIR:pdht_config_differential>/migrated)
     set_tests_properties(config_lint PROPERTIES DEPENDS config_differential)
+    set_tests_properties(config_differential config_lint PROPERTIES LABELS differential)
 endif()

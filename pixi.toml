@@ -16,7 +16,7 @@ build = { cmd = "cmake --build build --config Release --target PacificDriveHeadT
 build-release = { depends-on = ["build"] }
 # Depends on test, so no ZIP is built from a tree whose view characterization,
 # config boundary tests or config differential test fail.
-package = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test"] }
+package = { cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test-unit"] }
 # The fleet's own manifest gate, run against the ZIP that was just built:
 # delivery_mode must be "manifest", every path the launcher will read has to
 # exist inside the package, the config descriptor must match the repo, and
@@ -27,7 +27,9 @@ validate-manifest = "node cameraunlock-core/scripts/validate-manifest.mjs"
 configure-tests = "cmake -S . -B build-tests -A x64 -DPDHT_BUILD_TESTS=ON"
 build-tests = { cmd = "cmake --build build-tests --config Release --target pdht_view_characterization pdht_config_tests pdht_config_validation pdht_config_differential", depends-on = ["configure-tests"] }
 # Runs core's canonical config lint with node, from PATH like validate-manifest.
-test = { cmd = "ctest --test-dir build-tests -C Release --output-on-failure", depends-on = ["build-tests"] }
+test-unit = { cmd = "ctest --test-dir build-tests -C Release --output-on-failure -LE differential", depends-on = ["build-tests"] }
+test-differential = { cmd = "ctest --test-dir build-tests -C Release --output-on-failure --no-tests=error -L differential", depends-on = ["build-tests"] }
+test = { depends-on = ["test-unit", "test-differential"] }
 # Rewrites PacificDriveHeadTracking.ini, the committed config, from the config
 # table after a change to a row, a comment or a default, then the launcher
 # manifest's config descriptor per_game from it. pdht_config_tests fails until

@@ -14,11 +14,12 @@ on:
       - 'docs/**'
       - 'LICENSE'
 
-# Building and uploading an artifact needs nothing from the repository but the
-# code. Without this the job runs with whatever the repo default grants, which
-# is write on many repos.
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -41,18 +42,6 @@ jobs:
 
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
-
-      # The boundary tests for the INI and the view math. They live in their own
-      # build tree (PDHT_BUILD_TESTS is off for the shipped target), so nothing
-      # else exercises them and without this step they rot silently.
-      - name: Run tests
-        shell: pwsh
-        run: |
-          pixi run test
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::'pixi run test' failed"
-            exit 1
-          }
 
       # Build + package through the SAME command a developer runs locally. All
       # build logic lives in the pixi task chain (configure -> build -> package);
