@@ -15,7 +15,7 @@ Pacific Drive.
 | injector | `f7fd18f` (inside Ultimate ASI Loader v9.7.2) | zlib | Compiled into the vendored dinput8.dll |
 | miniz | 3.0.0 (inside Ultimate ASI Loader v9.7.2) | MIT | Compiled into the vendored dinput8.dll |
 | MinHook | v1.3.4 | BSD-2-Clause | Compiled into `PacificDriveHeadTracking.asi` |
-| cameraunlock-core | 36819655d6ce45d4de121aa03765ea2d2e60b98f | MIT | Compiled into `PacificDriveHeadTracking.asi` |
+| cameraunlock-core | e64a81ff0f7bde7ddb3102382a061b4c91f01254 | MIT | Compiled into `PacificDriveHeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -255,7 +255,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Git submodule at `cameraunlock-core/`, compiled into `PacificDriveHeadTracking.asi`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- **Version:** `36819655d6ce45d4de121aa03765ea2d2e60b98f`
+- **Version:** `e64a81ff0f7bde7ddb3102382a061b4c91f01254`
 - **License:** MIT
 - **Upstream:** https://github.com/itsloopyo/cameraunlock-core
 - **Usage:** Shared head tracking pipeline: OpenTrack receiver, pose interpolation, smoothing, hook manager and Unreal helpers.
